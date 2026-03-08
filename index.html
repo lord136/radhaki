@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="theme-color" content="#FF7A00"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>DIVYAM — Intelligent Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+
+<!-- ═══ Firebase compat (NO ES modules = no Vercel white screen) ═══ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+<!-- ── Custom Cursor ── -->
+<div id="cur"><div class="cur-ring" id="cur-ring"></div><div class="cur-dot" id="cur-dot"></div></div>
+
+<!-- ── Particles ── -->
+<canvas id="particles" style="position:fixed;inset:0;pointer-events:none;width:100%;height:100%;overflow:hidden;z-index:0"></canvas>
+
+<!-- ── Portal Overlay ── -->
+<div id="portal">
+  <canvas id="portal-canvas"></canvas>
+  <div id="portal-text">
+    <div id="portal-emoji" style="font-size:clamp(36px,8vw,60px);margin-bottom:8px;animation:halo 1s ease-in-out infinite;display:block">✦</div>
+    <h2>DIVYAM</h2>
+    <p id="portal-label" style="margin-top:8px;font-size:12px;font-weight:600;color:rgba(255,100,0,.7);letter-spacing:.22em;text-transform:uppercase">SUPER SEARCH</p>
+  </div>
+</div>
+
+<!-- ════════════════════ AUTH PAGE ════════════════════ -->
+<div id="auth-page">
+  <div class="orb1"></div>
+  <canvas id="auth-particles" style="position:fixed;inset:0;pointer-events:none;z-index:0"></canvas>
+  <div class="auth-box">
+    <button class="auth-back" id="auth-back" onclick="showPage('search')" style="display:none">←</button>
+    <div class="auth-logo">DIVYAM</div>
+    <div class="auth-sub-logo">INTELLIGENT SEARCH</div>
+    <button class="bg" id="google-btn" onclick="handleGoogleLogin()" style="width:100%;padding:15px 0;border-radius:14px;font-size:15px;border:1.5px solid var(--border2);margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:10px">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      Continue with Google
+    </button>
+    <div id="auth-err" class="auth-err"></div>
+    <div class="auth-divider"></div>
+    <div class="auth-info">Sign in to start searching. Upgrade any time for <strong style="color:var(--sf)">unlimited access</strong> via a one-time UPI payment.</div>
+    <p class="auth-footer">Secured by Firebase ✦ Divyam</p>
+  </div>
+</div>
+
+<!-- ════════════════════ MAIN SEARCH PAGE ════════════════════ -->
+<div class="page" id="search-page" style="display:none">
+  <div class="orb1"></div><div class="orb2"></div><div class="dot-grid"></div>
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-dot"></div>
+      <span class="brand-label">Intelligent Search</span>
+    </div>
+    <div id="counter-wrap" style="display:flex;align-items:center;gap:7px">
+      <div id="member-badge" class="mbadge" style="display:none">✦ LIFETIME</div>
+      <div class="counter" id="counter" onclick="if(!state.member && state.authUser) openPopup()" style="cursor:pointer">
+        <div class="counter-dots" id="counter-dots"></div>
+        <span class="counter-label" id="counter-label">Members Only</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="expiry-label" style="font-size:10px;color:var(--ink3);display:none"></span>
+      <button class="bico" id="dark-btn" onclick="toggleDark()" title="Toggle dark mode">🌙</button>
+      <button class="bico" onclick="openOverlay('history-overlay')" title="History">🕒</button>
+      <button class="bico" onclick="openOverlay('saved-overlay')" title="Saved">⭐</button>
+      <div id="auth-area">
+        <button class="bout" onclick="showPage('auth')" style="border-radius:50px;padding:7px 16px;font-size:12px">Sign In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-halo1"></div><div class="hero-halo2"></div>
+    <h1 class="hero-title">DIVYAM</h1>
+    <p class="hero-sub">The Intelligent Gateway to the Internet</p>
+    <p class="hero-welcome" id="hero-welcome" style="display:none">Welcome back, <strong id="welcome-name"></strong> ✦</p>
+    <div class="hero-line"></div>
+  </div>
+
+  <!-- Desktop Search Bar -->
+  <div class="sb-outer" id="desktop-search">
+    <div class="sb-wrap" id="sb-wrap">
+      <div class="sb-prefix" id="sb-prefix">
+        <span id="sb-prefix-emoji" style="font-size:15px"></span>
+        <span class="sb-prefix-name" id="sb-prefix-name"></span>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" id="sb-icon" style="flex-shrink:0;color:var(--ink3);transition:color .3s"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="sb-input" id="sb-input" inputmode="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search · @yt music · @az headphones · or just type" autocomplete="off"/>
+      <button class="sb-clear" id="sb-clear" onclick="clearInput()">×</button>
+      <button class="bico" id="mic-btn" onclick="toggleMic()" title="Voice search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--sf)" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10v2a7 7 0 0014 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <button class="bsf sb-btn" id="sb-btn" onclick="fireSearch()" style="border-radius:50px;padding:11px 20px;font-size:13.5px">
+        Search <span style="opacity:.65">✦</span>
+      </button>
+    </div>
+    <div class="mic-err" id="mic-err"><span>🎙</span><span id="mic-err-text"></span></div>
+
+    <!-- Autocomplete Dropdown -->
+    <div class="drop" id="drop">
+      <div id="drop-chips-section" style="display:none">
+        <div class="drop-sec">Search on…</div>
+        <div class="drop-chips" id="drop-chips"></div>
+        <div id="drop-wiki-preview" style="display:none"></div>
+        <div class="drop-divider"></div>
+      </div>
+      <div id="drop-recent-section" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 16px 4px">
+          <div class="drop-sec" style="padding:0">Recent Searches</div>
+          <button onclick="clearHistory()" style="background:none;border:none;font-size:11px;color:var(--ink3);cursor:pointer">Clear</button>
+        </div>
+        <div id="drop-recent"></div>
+        <div class="drop-divider"></div>
+      </div>
+      <div id="drop-trending-section" style="display:none">
+        <div class="drop-sec">🔥 Trending</div>
+        <div class="drop-trending" id="drop-trending"></div>
+      </div>
+    </div>
+
+    <!-- Command Hints -->
+    <div class="cmd-hints" id="cmd-hints"></div>
+
+    <!-- Search Insight -->
+    <div id="search-insight" style="display:none;align-items:center">
+      <span id="insight-icon" style="font-size:15px"></span>
+      <span id="insight-text"></span>
+      <span id="insight-plat" style="margin-left:auto;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;color:#fff"></span>
+    </div>
+  </div>
+
+  <!-- Hint Row -->
+  <div class="hint-row" style="width:100%;max-width:700px;margin-top:11px;z-index:10">
+    <span class="hint-text">Try <strong style="color:var(--sf)">@yt</strong> music · <strong style="color:var(--sf)">@az</strong> headphones</span>
+    <div class="shorthand-wrap">
+      <span class="shorthand-trigger" style="cursor:pointer">shortcuts ▾</span>
+      <div class="shorthand-tooltip" id="sh-tooltip"></div>
+    </div>
+  </div>
+
+  <!-- Platform Cards -->
+  <div class="platforms-section">
+    <p class="platforms-label">Browse Platforms</p>
+    <div class="pscroll" id="pscroll"></div>
+  </div>
+
+  <!-- Saved Quick Row -->
+  <div class="saved-section" id="saved-quick" style="display:none">
+    <p class="saved-label">Quick Launch</p>
+    <div class="saved-pills" id="saved-pills-row"></div>
+  </div>
+
+  <!-- Sign-in CTA (shown when not logged in) -->
+  <div class="signin-cta" id="signin-cta">
+    <p>Sign in to save your searches, track history, and unlock unlimited search with a one-time ₹149 payment.</p>
+    <button class="bsf signin-btn" onclick="showPage('auth')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="rgba(255,255,255,.9)"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="rgba(255,255,255,.9)"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="rgba(255,255,255,.9)"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="rgba(255,255,255,.9)"/></svg>
+      Sign In with Google
+    </button>
+  </div>
+
+  <footer>
+    <div class="footer-line"></div>
+    <p>DIVYAM · Intelligent Search · Zero ads · Powered by Firebase</p>
+  </footer>
+</div>
+
+<!-- ════════════════════ MEMBERSHIP / UPI PAYMENT POPUP ════════════════════ -->
+<div id="mem-popup">
+  <div class="mem-box" onclick="event.stopPropagation()">
+    <button class="mem-close-x" onclick="closePopup()">×</button>
+    <div class="mem-gem">✦</div>
+
+    <!-- STEP 1: Info -->
+    <div id="mem-step-info" style="padding-top:10px">
+      <p class="mem-tag">DIVYAM Unlimited Access</p>
+      <h2 class="mem-title">Search Smarter, Instantly</h2>
+      <p class="mem-sub">One search opens the entire internet. Jump instantly to the best platform for what you need — save time and search smarter with one intelligent gateway.</p>
+      <div class="mem-features">
+        <div class="mem-feat"><div class="mem-check">✓</div><span>Unlimited searches across every platform.</span></div>
+        <div class="mem-feat"><div class="mem-check">✓</div><span>One intelligent gateway to the entire internet.</span></div>
+        <div class="mem-feat"><div class="mem-check">✓</div><span>Jump directly to the best platform for your search.</span></div>
+        <div class="mem-feat"><div class="mem-check">✓</div><span>No subscription. No ads. Pay once, access forever.</span></div>
+      </div>
+      <div style="background:linear-gradient(135deg,rgba(255,106,0,.1),rgba(255,154,51,.07));border:1.5px solid rgba(255,122,0,.2);border-radius:14px;padding:12px 16px;margin-bottom:18px;text-align:center">
+        <div style="font-size:11px;color:var(--ink3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">One-time payment</div>
+        <div style="font-size:32px;font-weight:800;font-family:'Syne',sans-serif;color:var(--sf)">₹149</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px">Unlimited searches · No renewals · Ever</div>
+      </div>
+      <button class="bsf" onclick="showMemStep('upi')" style="width:100%;padding:13px 0;border-radius:14px;font-size:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px">
+        💳 Get Unlimited Access — ₹149
+      </button>
+      <button onclick="closePopup()" style="width:100%;padding:9px 0;margin-top:4px;background:none;border:none;font-size:12px;color:var(--ink3);font-family:'DM Sans',sans-serif;cursor:pointer">Maybe later</button>
+    </div>
+
+    <!-- STEP 2: UPI Payment -->
+    <div id="mem-step-upi" style="display:none;padding-top:10px">
+      <button onclick="showMemStep('info')" class="mem-back-btn">← Back</button>
+      <p class="mem-tag">Complete Payment</p>
+      <h2 class="mem-title" style="font-size:20px;margin-bottom:6px">Pay via UPI</h2>
+      <p style="font-size:12px;color:var(--ink3);margin-bottom:16px;line-height:1.65">Scan the QR code or tap the button below to complete your ₹149 payment. After paying, click <strong style="color:var(--ink2)">"I've Paid"</strong> to send us your confirmation on Instagram.</p>
+      <div style="background:#fff;border-radius:18px;padding:16px;margin-bottom:14px;display:flex;flex-direction:column;align-items:center;gap:8px;border:1.5px solid rgba(255,122,0,.15)">
+        <img id="upi-qr-img" src="" alt="UPI QR Code" style="width:180px;height:180px;border-radius:10px;display:block;background:rgba(255,122,0,.05)"/>
+        <div style="font-size:11px;color:#888;letter-spacing:.04em;text-align:center">Google Pay · PhonePe · Paytm · BHIM</div>
+      </div>
+      <div style="background:var(--sfbg);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--ink2);display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;justify-content:space-between;gap:10px"><span style="color:var(--ink3)">UPI ID</span><strong style="font-size:11px;word-break:break-all">prempeswani1609@okaxis</strong></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--ink3)">Merchant</span><strong>Divyam</strong></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--ink3)">Amount</span><strong style="color:var(--sf)">₹149</strong></div>
+      </div>
+      <a id="upi-deep-link" href="#" onclick="openUpiApp(event)" class="bsf" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px 0;border-radius:14px;font-size:14px;text-decoration:none;color:#fff;margin-bottom:10px">
+        📱 Open UPI App to Pay
+      </a>
+      <button class="bg" onclick="showMemStep('confirm')" style="width:100%;padding:12px 0;border-radius:14px;font-size:13px;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;gap:7px">
+        ✅ I've Paid — Activate My Access →
+      </button>
+    </div>
+
+    <!-- STEP 3: Instagram Confirmation -->
+    <div id="mem-step-confirm" style="display:none;padding-top:10px">
+      <button onclick="showMemStep('upi')" class="mem-back-btn">← Back</button>
+      <p class="mem-tag">Almost There!</p>
+      <h2 class="mem-title" style="font-size:20px;margin-bottom:8px">One Last Step to Activate</h2>
+      <div style="background:linear-gradient(135deg,rgba(255,106,0,.07),rgba(255,154,51,.04));border:1.5px solid rgba(255,122,0,.18);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--ink2);line-height:1.8">
+          Message us on Instagram with your login email and we'll activate your unlimited access — usually within a few hours.
+        </div>
+      </div>
+      <div style="background:var(--sfbg);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:12px;display:flex;align-items:center;gap:10px">
+        <div style="font-size:20px">📧</div>
+        <div>
+          <div style="color:var(--ink3);font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">Send this email in your DM</div>
+          <div id="confirm-email" style="font-weight:700;color:var(--ink);word-break:break-all;font-size:12px"></div>
+        </div>
+      </div>
+      <a href="https://www.instagram.com/super_serach" target="_blank" rel="noopener"
+        class="bsf"
+        style="display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:13px 0;border-radius:14px;font-size:14px;font-weight:700;text-decoration:none;color:#fff;margin-bottom:10px;background:linear-gradient(135deg,#E1306C,#833AB4,#405DE6)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="white" stroke="none"/></svg>
+        Message Us on Instagram
+      </a>
+      <div style="font-size:11px;color:var(--ink3);text-align:center;line-height:1.65;margin-bottom:12px">
+        After completing payment, send your login email in the Instagram message so we can activate your unlimited access.
+      </div>
+      <button class="bg" onclick="closePopup()" style="width:100%;padding:11px 0;border-radius:14px;font-size:13px;border:1.5px solid var(--border2)">
+        Done — Message Sent ✓
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ ADMIN PANEL OVERLAY ════════════════════ -->
+<div class="overlay" id="admin-overlay" onclick="closeOverlay('admin-overlay')">
+  <div class="panel-box" onclick="event.stopPropagation()" style="max-width:680px">
+    <div class="panel-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div><h3>🛡 Admin Panel</h3><p>Review and approve payment submissions</p></div>
+      <button class="panel-close" onclick="closeOverlay('admin-overlay')">×</button>
+    </div>
+    <div class="panel-body" id="admin-panel-body" style="padding:12px 12px 24px"></div>
+  </div>
+</div>
+
+<!-- ════════════════════ SAVED SEARCHES OVERLAY ════════════════════ -->
+<div class="overlay" id="saved-overlay" onclick="closeOverlay('saved-overlay')">
+  <div class="panel-box" onclick="event.stopPropagation()">
+    <div class="panel-head" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div><h3>⭐ Saved Searches</h3><p>Your pinned quick-launch searches</p></div>
+      <button class="panel-close" onclick="closeOverlay('saved-overlay')">×</button>
+    </div>
+    <div class="panel-body" id="saved-panel-body"></div>
+  </div>
+</div>
+
+<!-- ════════════════════ HISTORY OVERLAY ════════════════════ -->
+<div class="overlay" id="history-overlay" onclick="closeOverlay('history-overlay')">
+  <div class="panel-box" onclick="event.stopPropagation()">
+    <div class="panel-head">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h3>🕒 Search History</h3>
+        <button class="panel-close" onclick="closeOverlay('history-overlay')">×</button>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('history')" data-tab="history">History</button>
+        <button class="tab-btn" onclick="switchTab('analytics')" data-tab="analytics">Analytics 📊</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="tab-panel active" id="tab-history"></div>
+      <div class="tab-panel" id="tab-analytics"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ COMMAND PALETTE ════════════════════ -->
+<div class="overlay" id="palette-overlay" onclick="closeOverlay('palette-overlay')">
+  <div class="panel-box" onclick="event.stopPropagation()" style="max-width:520px">
+    <div class="palette-input-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--ink3)" stroke-width="2"/><path d="M20 20l-3-3" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="palette-input" id="palette-input" placeholder="Search commands or type a query…" oninput="filterPalette()" onkeydown="paletteKey(event)"/>
+      <kbd style="font-size:10px;background:var(--sfbg);padding:3px 7px;border-radius:7px;color:var(--ink3);border:1px solid var(--border2)">ESC</kbd>
+    </div>
+    <div class="panel-body" id="palette-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════ ONBOARDING TOUR ════════════════════ -->
+<div id="tour">
+  <div class="tour-head">
+    <span class="tour-title" id="tour-title"></span>
+    <span class="tour-step-label" id="tour-step-label"></span>
+  </div>
+  <p class="tour-body" id="tour-body"></p>
+  <div class="tour-actions">
+    <button class="bsf tour-next" id="tour-next" onclick="tourNext()">Next →</button>
+    <button class="tour-skip" onclick="tourSkip()">Skip</button>
+  </div>
+  <div class="tour-dots" id="tour-dots"></div>
+</div>
+
+<!-- ════════════════════ KNOWLEDGE PAGE ════════════════════ -->
+<div id="knowledge-page" style="display:none;position:fixed;inset:0;z-index:3000;overflow-y:auto;background:var(--bg0)">
+  <div style="max-width:740px;margin:0 auto;padding:28px 22px 100px">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:26px">
+      <button id="kp-back" style="width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border2);background:var(--sfbg);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink2);flex-shrink:0;transition:background .2s;cursor:pointer">←</button>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div id="kp-breadcrumb" style="font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--ink3);text-transform:uppercase">Super Search › Intelligence</div>
+          <div style="display:flex;align-items:center;gap:3px;margin-left:auto;flex-shrink:0">
+            <div style="width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 5px rgba(34,197,94,.5);animation:halo 2s ease-in-out infinite"></div>
+            <span style="font-size:8px;font-weight:700;letter-spacing:.1em;color:rgba(34,197,94,.7);text-transform:uppercase">7 Agents Active</span>
+          </div>
+        </div>
+        <div id="kp-query-title" style="font-size:20px;font-weight:800;color:var(--ink);font-family:'Syne',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+      </div>
+    </div>
+
+    <!-- Intent badge -->
+    <div id="kp-intent-badge" style="display:none;margin-bottom:18px;padding:11px 16px;background:rgba(255,122,0,.07);border:1.5px solid rgba(255,122,0,.16);border-radius:14px;font-size:13px;color:var(--ink2);align-items:center;gap:9px">
+      <span id="kp-intent-icon" style="font-size:18px"></span>
+      <span id="kp-intent-text"></span>
+    </div>
+
+    <!-- ① Smart Answer panel — structured list for "best X", "top X", comparisons -->
+    <div id="kp-smart-panel" style="display:none;background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid rgba(255,122,0,.28);border-radius:22px;padding:22px 24px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span style="font-size:16px">✦</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--sf);text-transform:uppercase">Smart Answer</span>
+        <span id="kp-smart-label" style="margin-left:auto;font-size:10px;color:var(--ink4)"></span>
+      </div>
+      <div id="kp-smart-body"></div>
+    </div>
+
+    <!-- ① Quick Answer panel (currency / numbers / math) -->
+    <div id="kp-quick-panel" style="display:none;background:linear-gradient(148deg,rgba(255,122,0,.08),rgba(255,180,50,.04));border:1.5px solid rgba(255,122,0,.22);border-radius:22px;padding:20px 24px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">⚡</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase">Quick Answer</span>
+        <span id="kp-quick-src" style="margin-left:auto;font-size:10px;color:var(--ink4)"></span>
+      </div>
+      <div id="kp-quick-text" style="font-size:22px;font-weight:800;font-family:'Syne',sans-serif;color:var(--sf);letter-spacing:-.02em;line-height:1.3"></div>
+    </div>
+
+    <!-- ② Wikipedia knowledge panel -->
+    <div id="kp-wiki-panel" style="background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid var(--border2);border-radius:22px;padding:22px 24px;margin-bottom:16px;animation:kpPanelIn .35s var(--sp)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font-size:17px">📖</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase">Knowledge Panel</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--ink4)">via Wikipedia</span>
+      </div>
+      <div id="kp-wiki-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">
+        <div style="width:14px;height:14px;border:2px solid rgba(255,122,0,.25);border-top-color:var(--sf);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+        Fetching knowledge…
+      </div>
+      <div id="kp-wiki-content" style="display:none">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <p id="kp-wiki-text" style="font-size:14px;line-height:1.75;color:var(--ink2);margin-bottom:12px"></p>
+            <a id="kp-wiki-link" href="#" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--sf);text-decoration:none;padding:6px 14px;border:1.5px solid rgba(255,122,0,.25);border-radius:20px;background:rgba(255,122,0,.06);transition:background .2s">Read full article →</a>
+          </div>
+          <img id="kp-wiki-thumb" src="" alt="" loading="lazy" style="display:none;width:86px;height:86px;object-fit:cover;border-radius:12px;border:1.5px solid var(--border2);flex-shrink:0"/>
+        </div>
+      </div>
+      <div id="kp-wiki-empty" style="display:none;font-size:13px;color:var(--ink3)">No summary found — try a more specific term.</div>
+    </div>
+
+    <!-- ③ Wikidata structured facts -->
+    <div id="kp-wikidata-panel" style="display:none;background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid var(--border2);border-radius:22px;padding:22px 24px;margin-bottom:16px;animation:kpPanelIn .4s var(--sp)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font-size:17px">🔬</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase">Structured Facts</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--ink4)">via Wikidata</span>
+      </div>
+      <div id="kp-wikidata-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">
+        <div style="width:14px;height:14px;border:2px solid rgba(255,122,0,.25);border-top-color:var(--sf);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+        Loading facts…
+      </div>
+      <div id="kp-wikidata-content" style="display:none">
+        <div id="kp-wikidata-facts" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:9px"></div>
+      </div>
+    </div>
+
+    <!-- ④ Open Library books -->
+    <div id="kp-books-panel" style="display:none;background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid var(--border2);border-radius:22px;padding:22px 24px;margin-bottom:16px;animation:kpPanelIn .45s var(--sp)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font-size:17px">📚</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase">Books & Authors</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--ink4)">via Open Library</span>
+      </div>
+      <div id="kp-books-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">
+        <div style="width:14px;height:14px;border:2px solid rgba(255,122,0,.25);border-top-color:var(--sf);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+        Finding books…
+      </div>
+      <div id="kp-books-content" style="display:none">
+        <div id="kp-books-grid" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-ms-overflow-style:none"></div>
+      </div>
+    </div>
+
+    <!-- ⑤ Wikimedia Commons images -->
+    <div id="kp-commons-panel" style="display:none;background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid var(--border2);border-radius:22px;padding:22px 24px;margin-bottom:16px;animation:kpPanelIn .5s var(--sp)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font-size:17px">🖼️</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase">Educational Visuals</span>
+        <span style="margin-left:auto;font-size:10px;color:var(--ink4)">via Wikimedia Commons</span>
+      </div>
+      <div id="kp-commons-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">
+        <div style="width:14px;height:14px;border:2px solid rgba(255,122,0,.25);border-top-color:var(--sf);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>
+        Loading visuals…
+      </div>
+      <div id="kp-commons-content" style="display:none">
+        <div id="kp-commons-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- ⑥ Where to search cards -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="font-size:9.5px;font-weight:700;letter-spacing:.16em;color:var(--ink4);text-transform:uppercase">Where to search</div>
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(255,122,0,.18),transparent)"></div>
+      <div style="font-size:8px;font-weight:700;letter-spacing:.12em;color:rgba(255,122,0,.5);text-transform:uppercase;padding:2px 8px;border:1px solid rgba(255,122,0,.15);border-radius:10px;background:rgba(255,122,0,.04)">◈ Nova Routed</div>
+    </div>
+    <div id="kp-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:13px;margin-bottom:28px"></div>
+
+    <!-- ⑦ Related searches -->
+    <div id="kp-related" style="display:none">
+      <div style="font-size:9.5px;font-weight:700;letter-spacing:.16em;color:var(--ink4);text-transform:uppercase;margin-bottom:12px">Related Searches</div>
+      <div id="kp-related-pills" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Scroll Indicators -->
+<div class="scroll-indicator" id="scroll-up-btn" style="top:76px">
+  <button onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Back to top</button>
+</div>
+<div class="scroll-indicator" id="scroll-dn-btn" style="bottom:88px">
+  <button onclick="window.scrollBy({top:window.innerHeight*.8,behavior:'smooth'})">↓ Scroll down</button>
+</div>
+
+<!-- ═══ App Script (AFTER DOM) ═══ -->
+<script src="script.js"></script>
+<!-- ═══ DIVYAM Agent Intelligence Layer ═══ -->
+<script src="agents.js"></script>
+</body>
+</html>
