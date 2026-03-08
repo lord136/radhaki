@@ -1,30 +1,30 @@
 /* ═══════════════════════════════════════════════════════════════
-   DIVYAM — agents.js  v3.0
+   DIVYAM — agents.js  v4.0  (Super Search · Founder Edition)
    ─────────────────────────────────────────────────────────────
-   • Futuristic Agent HUD below search bar
-   • Agent-tagged autocomplete suggestions in dropdown
-   • Cinematic search animation overlay
-   • Ambient Gita Wisdom ribbon (every search)
-   • Knowledge Page panels with all 7 agents
-   • Cinematic theme enhancements (mesh, scanlines, aurora)
-   ─────────────────────────────────────────────────────────────
-   ZERO changes to script.js · style.css · index.html
+   NEW in v4.0:
+   • Search-focus hides ALL below-bar UI (HUD, ribbon, hint-row,
+     platforms, saved) → reappears when input is empty / blurred
+   • Per-search rotating Gita slokas (never repeats in a session)
+   • Futuristic Knowledge Results: layered cards, dynamic panels,
+     multi-source info grouping, animated reveal
+   • Free AI experiments: Pollinations.AI text inference (no key)
+     + fallback to Wikipedia-based smart summaries
+   • Fixed: logout now reliably clears state and redirects
+   • Creative: cosmic-depth result cards, gradient shimmer tiles
 ═══════════════════════════════════════════════════════════════ */
 
-(function DivyamAgentsV3() {
+(function DivyamAgentsV4() {
   'use strict';
 
-  /* ────────────────────────────────────────────────────────────
-     1. CONSTANTS
-  ──────────────────────────────────────────────────────────── */
+  /* ── 1. CONSTANTS ───────────────────────────────────────────── */
   var AGENTS = [
-    { id:'orion',  name:'Orion',  role:'Intent Researcher',     sym:'◎', color:'#FF7A00', glow:'rgba(255,122,0,.5)',    task:'Analyzing search intent…',  done:'Intent mapped ✓' },
-    { id:'nova',   name:'Nova',   role:'Platform Navigator',    sym:'◈', color:'#4285F4', glow:'rgba(66,133,244,.5)',  task:'Routing to platforms…',     done:'Platforms ready ✓' },
-    { id:'atlas',  name:'Atlas',  role:'Knowledge Researcher',  sym:'◉', color:'#34A853', glow:'rgba(52,168,83,.5)',   task:'Fetching knowledge base…',  done:'Knowledge loaded ✓' },
-    { id:'vega',   name:'Vega',   role:'Discovery Explorer',    sym:'◇', color:'#9C27B0', glow:'rgba(156,39,176,.5)', task:'Exploring related topics…', done:'Topics discovered ✓' },
-    { id:'helix',  name:'Helix',  role:'Platform Analyst',      sym:'⬡', color:'#F48024', glow:'rgba(244,128,36,.5)',  task:'Analysing content types…',  done:'Insights extracted ✓' },
-    { id:'zenith', name:'Zenith', role:'Context Interpreter',   sym:'◬', color:'#00BCD4', glow:'rgba(0,188,212,.5)',   task:'Interpreting context…',     done:'Context clarified ✓' },
-    { id:'vyasa',  name:'Vyasa',  role:'Gita Wisdom Teller',    sym:'ॐ', color:'#D97706', glow:'rgba(217,119,6,.5)',   task:'Retrieving Gita wisdom…',   done:'Wisdom revealed ✓' }
+    { id:'orion',  name:'Orion',  role:'Intent Researcher',    sym:'◎', color:'#FF7A00', glow:'rgba(255,122,0,.5)',    task:'Analyzing intent…',         done:'Intent mapped ✓' },
+    { id:'nova',   name:'Nova',   role:'Platform Navigator',   sym:'◈', color:'#4285F4', glow:'rgba(66,133,244,.5)',  task:'Routing platforms…',        done:'Platforms ready ✓' },
+    { id:'atlas',  name:'Atlas',  role:'Knowledge Researcher', sym:'◉', color:'#34A853', glow:'rgba(52,168,83,.5)',   task:'Fetching knowledge…',       done:'Knowledge loaded ✓' },
+    { id:'vega',   name:'Vega',   role:'Discovery Explorer',   sym:'◇', color:'#9C27B0', glow:'rgba(156,39,176,.5)', task:'Exploring topics…',         done:'Topics discovered ✓' },
+    { id:'helix',  name:'Helix',  role:'Platform Analyst',     sym:'⬡', color:'#F48024', glow:'rgba(244,128,36,.5)',  task:'Analysing content…',        done:'Insights extracted ✓' },
+    { id:'zenith', name:'Zenith', role:'Context Interpreter',  sym:'◬', color:'#00BCD4', glow:'rgba(0,188,212,.5)',   task:'Interpreting context…',     done:'Context clarified ✓' },
+    { id:'vyasa',  name:'Vyasa',  role:'Gita Wisdom Teller',   sym:'ॐ', color:'#D97706', glow:'rgba(217,119,6,.5)',   task:'Retrieving Gita wisdom…',   done:'Wisdom revealed ✓' }
   ];
 
   var INTENT_RULES = [
@@ -71,35 +71,42 @@
     wikipedia:     { name:'Wikipedia',     emoji:'📖', color:'#3366CC', url:function(q){ return 'https://en.wikipedia.org/wiki/Special:Search?search='+encodeURIComponent(q); },reason:'Encyclopedia' }
   };
 
-  /* Gita data */
+  /* ── Gita: rotating pool — session-unique verses ─── */
   var GITA_KW = ['bhagavad gita','gita','krishna','arjuna','dharma','karma','yoga','moksha','atman','brahman','meditation','mantra','sloka','verse','spiritual','vedas','upanishad','advaita','soul','consciousness','enlightenment','self-realization','divine','detachment','duty','truth','bhakti','jnana','vedic','purpose of life','mind','wisdom'];
   var GITA_TOPIC = { karma:{ch:2,v:47}, dharma:{ch:3,v:35}, yoga:{ch:6,v:5}, meditation:{ch:6,v:10}, death:{ch:2,v:20}, action:{ch:2,v:47}, peace:{ch:2,v:66}, devotion:{ch:9,v:22}, knowledge:{ch:4,v:38}, wisdom:{ch:4,v:38}, mind:{ch:6,v:5}, duty:{ch:3,v:35}, soul:{ch:2,v:20}, divine:{ch:9,v:22}, enlightenment:{ch:4,v:38}, purpose:{ch:3,v:30}, truth:{ch:4,v:1} };
-  var DAILY_POOL = [{ch:2,v:47},{ch:3,v:35},{ch:6,v:5},{ch:4,v:38},{ch:2,v:20},{ch:9,v:22},{ch:2,v:14},{ch:6,v:10},{ch:2,v:66},{ch:3,v:30},{ch:4,v:1},{ch:12,v:15}];
+  /* Large pool so each search shows a different verse */
+  var GITA_FULL_POOL = [
+    {ch:1,v:1},{ch:2,v:14},{ch:2,v:20},{ch:2,v:47},{ch:2,v:66},
+    {ch:3,v:16},{ch:3,v:21},{ch:3,v:27},{ch:3,v:30},{ch:3,v:35},
+    {ch:4,v:1},{ch:4,v:7},{ch:4,v:11},{ch:4,v:38},{ch:5,v:10},
+    {ch:5,v:18},{ch:6,v:5},{ch:6,v:10},{ch:6,v:34},{ch:7,v:8},
+    {ch:8,v:7},{ch:9,v:22},{ch:9,v:26},{ch:10,v:10},{ch:10,v:20},
+    {ch:11,v:33},{ch:12,v:13},{ch:12,v:15},{ch:13,v:22},{ch:14,v:23},
+    {ch:15,v:15},{ch:16,v:1},{ch:17,v:17},{ch:18,v:63},{ch:18,v:66}
+  ];
+  var _sessionSearchCount = 0;
+  var _usedVerseIndices = [];
+
+  function pickSessionVerse() {
+    /* Reset if all used */
+    if (_usedVerseIndices.length >= GITA_FULL_POOL.length) _usedVerseIndices = [];
+    var available = GITA_FULL_POOL.map(function(_, i){ return i; }).filter(function(i){ return _usedVerseIndices.indexOf(i) === -1; });
+    var pick = available[_sessionSearchCount % available.length];
+    _usedVerseIndices.push(pick);
+    _sessionSearchCount++;
+    return GITA_FULL_POOL[pick];
+  }
 
   function isGitaQ(q){ var l=q.toLowerCase(); return GITA_KW.some(function(k){ return l.includes(k); }); }
-  function pickDailyRef(){ var d=Math.floor(Date.now()/(864e5)); return DAILY_POOL[d%DAILY_POOL.length]; }
-
-  /* Query-specific verse: each unique search gets a unique verse from the pool */
-  function queryHash(q){
-    var h=0, s=q.toLowerCase().trim();
-    for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; }
-    return Math.abs(h);
-  }
-  function pickVerseForQuery(q){
-    if(!q) return pickDailyRef();
-    return DAILY_POOL[queryHash(q) % DAILY_POOL.length];
-  }
   function selectGitaRef(q){
     var l=q.toLowerCase();
     for(var t in GITA_TOPIC){ if(l.includes(t)) return GITA_TOPIC[t]; }
-    var m=q.match(/\b(\d{1,2})[:.]\s*(\d{1,3})\b/);
+    var m=q.match(/\b(\d{1,2})[:.]?\s*(\d{1,3})\b/);
     if(m) return {ch:+m[1],v:+m[2]};
     return null;
   }
 
-  /* ────────────────────────────────────────────────────────────
-     2. UTILITY
-  ──────────────────────────────────────────────────────────── */
+  /* ── 2. UTILITY ─────────────────────────────────────────────── */
   function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function detectIntent(q){
@@ -116,9 +123,7 @@
     return 'rgba('+r+','+g+','+b+','+a+')';
   }
 
-  /* ────────────────────────────────────────────────────────────
-     3. API FETCHERS
-  ──────────────────────────────────────────────────────────── */
+  /* ── 3. API FETCHERS ─────────────────────────────────────────── */
   async function fetchGitaVerse(ch,v){
     try{
       var r=await fetch('https://vedicscriptures.github.io/slok/'+ch+'/'+v+'/');
@@ -151,15 +156,28 @@
     }catch(e){ return []; }
   }
 
-  /* ────────────────────────────────────────────────────────────
-     4. INJECT STYLES
-  ──────────────────────────────────────────────────────────── */
+  /* Free AI: Pollinations.AI — truly free, no API key needed */
+  async function fetchPollinationsAI(prompt){
+    try{
+      var url='https://text.pollinations.ai/'+encodeURIComponent(prompt)+'?model=mistral&seed=42&json=false';
+      var ctrl=new AbortController();
+      var timeout=setTimeout(function(){ ctrl.abort(); },7000);
+      var r=await fetch(url,{signal:ctrl.signal});
+      clearTimeout(timeout);
+      if(!r.ok) return null;
+      var txt=await r.text();
+      /* Trim to max 280 chars for card display */
+      return txt&&txt.length>10 ? txt.trim().slice(0,280)+(txt.length>280?'…':'') : null;
+    }catch(e){ return null; }
+  }
+
+  /* ── 4. INJECT STYLES ───────────────────────────────────────── */
   function injectStyles(){
     if(document.getElementById('dvag-style')) return;
     var el=document.createElement('style');
     el.id='dvag-style';
     el.textContent=
-    /* ── Cinematic ambient enhancements ─────────────────── */
+    /* ── Ambient ─────────────────────────── */
     '#dvag-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}'+
     '#dvag-mesh::before,#dvag-mesh::after{content:\'\';position:absolute;border-radius:50%;pointer-events:none}'+
     '#dvag-mesh::before{width:700px;height:700px;top:-20%;left:-15%;background:radial-gradient(circle,rgba(255,100,0,.042) 0%,transparent 65%);animation:dvMesh 22s ease-in-out infinite}'+
@@ -170,53 +188,40 @@
     '#dvag-aurora{position:fixed;top:0;left:0;right:0;z-index:1;pointer-events:none;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(255,122,0,.32) 40%,rgba(255,180,60,.42) 60%,transparent 100%);animation:dvAurora 9s ease-in-out infinite}'+
     '@keyframes dvAurora{0%,100%{opacity:.5;transform:scaleX(.8)}50%{opacity:1;transform:scaleX(1)}}'+
 
-    /* ── HUD container ────────────────────────────────────── */
+    /* ── Search-focus: hide below-bar UI ─── */
+    '.dvag-focused #dvag-hud,.dvag-focused #dvag-ribbon,.dvag-focused .hint-row{opacity:0!important;transform:translateY(-6px)!important;pointer-events:none!important;transition:opacity .22s ease,transform .22s ease!important}'+
+
+    /* ── HUD ─────────────────────────────── */
     '#dvag-hud{width:100%;max-width:700px;margin:20px auto 0;padding:0;position:relative;z-index:10;opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}'+
     '#dvag-hud.hud-show{opacity:1;transform:none}'+
-
-    /* HUD header */
     '.dvag-hdr{display:flex;align-items:center;gap:10px;margin-bottom:13px}'+
     '.dvag-hdr-ttl{font-size:8.5px;font-weight:700;letter-spacing:.26em;color:var(--ink4);text-transform:uppercase;white-space:nowrap}'+
     '.dvag-hdr-line{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,122,0,.32),rgba(255,122,0,.06) 70%,transparent)}'+
     '.dvag-hdr-badge{font-size:8px;font-weight:800;letter-spacing:.16em;padding:3px 11px;border-radius:20px;background:rgba(255,122,0,.08);border:1px solid rgba(255,122,0,.2);color:var(--sf);text-transform:uppercase;white-space:nowrap}'+
-
-    /* Agent grid */
     '.dvag-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}'+
     '@media(max-width:680px){.dvag-grid{grid-template-columns:repeat(4,1fr)}}'+
     '@media(max-width:440px){.dvag-grid{grid-template-columns:repeat(3,1fr);gap:5px}#dvag-hud{padding:0 2px}}'+
-
-    /* Individual tile */
     '.dvag-tile{position:relative;display:flex;flex-direction:column;align-items:center;padding:11px 4px 9px;border-radius:14px;border:1.5px solid var(--border2);background:var(--sfbg);overflow:hidden;transition:border-color .3s,box-shadow .3s,background .3s;user-select:none}'+
     '.dvag-tile::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,var(--tc) 0%,transparent 70%);opacity:0;transition:opacity .4s;pointer-events:none}'+
     '.dvag-tile.tac{border-color:var(--tc)!important;box-shadow:0 0 18px -5px var(--tg)}'+
     '.dvag-tile.tac::before{opacity:.07}'+
     '.dvag-tile.tdn{border-color:rgba(34,197,94,.22)!important}'+
     '.dvag-tile.tdn::before{opacity:.02}'+
-
-    /* bottom shimmer bar */
     '.dvag-tile::after{content:\'\';position:absolute;bottom:0;left:0;right:0;height:1.5px;opacity:0;transition:opacity .3s;background:linear-gradient(90deg,transparent,var(--tc),transparent)}'+
     '.dvag-tile.tac::after{opacity:.55;animation:dvBar 1.5s linear infinite}'+
     '.dvag-tile.tdn::after{opacity:.1;animation:none}'+
     '@keyframes dvBar{0%{background-position:200% 0}100%{background-position:-200% 0}}'+
-
-    /* Icon ring */
     '.dvag-ring{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;font-family:\'Syne\',sans-serif;border:1.5px solid var(--tc);color:var(--tc);margin-bottom:7px;position:relative;transition:box-shadow .3s}'+
     '.dvag-tile.tac .dvag-ring{box-shadow:0 0 12px -3px var(--tg);animation:dvRingPulse 1.2s ease-in-out infinite}'+
     '@keyframes dvRingPulse{0%,100%{box-shadow:0 0 8px -3px var(--tg)}50%{box-shadow:0 0 20px 2px var(--tg)}}'+
-
-    /* scan sweep in ring */
     '.dvag-scan{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none}'+
     '.dvag-scan::after{content:\'\';position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--tc),transparent);opacity:0;top:-2px}'+
     '.dvag-tile.tac .dvag-scan::after{opacity:.85;animation:dvScan .95s linear infinite}'+
     '@keyframes dvScan{0%{top:-2px;opacity:0}12%{opacity:.85}88%{opacity:.85}100%{top:calc(100% + 2px);opacity:0}}'+
-
-    /* Status dot */
     '.dvag-dot{position:absolute;top:7px;right:7px;width:5px;height:5px;border-radius:50%;background:var(--border2);transition:background .3s,box-shadow .3s}'+
     '.dvag-tile.tac .dvag-dot{background:var(--tc);box-shadow:0 0 5px 1px var(--tg);animation:dvDotBlink .65s ease-in-out infinite}'+
     '.dvag-tile.tdn .dvag-dot{background:#22c55e;box-shadow:0 0 4px rgba(34,197,94,.5)}'+
     '@keyframes dvDotBlink{0%,100%{opacity:1}50%{opacity:.2}}'+
-
-    /* Text */
     '.dvag-nm{font-size:10.5px;font-weight:800;color:var(--ink);font-family:\'Syne\',sans-serif;letter-spacing:.03em;text-align:center;transition:color .3s}'+
     '.dvag-tile.tac .dvag-nm{color:var(--tc)}'+
     '.dvag-rl{font-size:8px;color:var(--ink4);text-align:center;line-height:1.3;margin-top:2px;letter-spacing:.01em}'+
@@ -224,7 +229,7 @@
     '.dvag-tile.tac .dvag-tk{color:var(--tc);opacity:.85}'+
     '.dvag-tile.tdn .dvag-tk{color:#22c55e;opacity:.7}'+
 
-    /* ── Gita Wisdom Ribbon ───────────────────────────────── */
+    /* ── Gita Wisdom Ribbon ───────────────── */
     '#dvag-ribbon{width:100%;max-width:700px;margin:12px auto 0;position:relative;z-index:10;opacity:0;transform:translateY(8px);transition:opacity .5s ease,transform .5s ease}'+
     '#dvag-ribbon.rbn-show{opacity:1;transform:none}'+
     '.dvag-rbn-inner{display:flex;align-items:flex-start;gap:13px;padding:13px 17px;background:linear-gradient(135deg,rgba(217,119,6,.06) 0%,rgba(255,122,0,.025) 100%);border:1px solid rgba(217,119,6,.2);border-radius:15px;position:relative;overflow:hidden}'+
@@ -243,7 +248,7 @@
     '.dvag-rbn-toggle{flex-shrink:0;width:22px;height:22px;border-radius:50%;border:1px solid rgba(217,119,6,.18);background:rgba(217,119,6,.06);display:flex;align-items:center;justify-content:center;font-size:12px;color:rgba(217,119,6,.55);cursor:pointer;transition:background .2s;margin-top:1px;font-family:\'DM Sans\',sans-serif;line-height:1}'+
     '.dvag-rbn-toggle:hover{background:rgba(217,119,6,.13);color:#D97706}'+
 
-    /* ── Tagged suggestions in dropdown ─────────────────── */
+    /* ── Dropdown agent section ───────────── */
     '#dvag-drop-section{border-top:1px solid var(--border2);padding:10px 14px 12px}'+
     '.dvag-drop-hdr{display:flex;align-items:center;gap:8px;margin-bottom:9px}'+
     '.dvag-drop-tag{display:inline-flex;align-items:center;gap:4px;font-size:8px;font-weight:700;letter-spacing:.15em;padding:2px 8px;border-radius:20px;text-transform:uppercase}'+
@@ -253,32 +258,21 @@
     '.dvag-drop-section-lbl{font-size:8px;font-weight:700;letter-spacing:.15em;color:var(--ink4);text-transform:uppercase;margin:8px 0 6px;display:flex;align-items:center;gap:6px}'+
     '.dvag-drop-section-lbl::before{content:\'\';width:3px;height:3px;border-radius:50%;background:var(--ink4);flex-shrink:0}'+
 
-    /* ── Search cinema overlay ───────────────────────────── */
+    /* ── Cinema overlay ───────────────────── */
     '#dvag-cinema{position:fixed;inset:0;z-index:6000;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .22s ease;background:var(--bg0);overflow:hidden}'+
     '#dvag-cinema.cin-on{opacity:1;pointer-events:all}'+
     '#dvag-cinema::before{content:\'\';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.014) 2px,rgba(0,0,0,.014) 4px)}'+
-
-    /* cinema rings */
     '.cin-ring{position:absolute;border-radius:50%;pointer-events:none;left:50%;top:50%;transform:translate(-50%,-50%)}'+
     '.cin-r1{width:380px;height:380px;border:1px solid rgba(255,122,0,.07)}'+
     '.cin-r2{width:530px;height:530px;border:1px solid rgba(255,122,0,.05);animation:cinRot 16s linear infinite}'+
     '.cin-r3{width:680px;height:680px;border:1px solid rgba(255,122,0,.03);animation:cinRot 24s linear infinite reverse}'+
     '.cin-r4{width:830px;height:830px;border:1px solid rgba(255,122,0,.015);animation:cinRot 34s linear infinite}'+
     '@keyframes cinRot{to{transform:translate(-50%,-50%) rotate(360deg)}}'+
-
-    /* cinema brackets */
     '.cin-bk{position:absolute;width:40px;height:40px;pointer-events:none;opacity:.35}'+
-    '.cin-bk-tl{top:20px;left:20px}'+
-    '.cin-bk-tr{top:20px;right:20px;transform:scaleX(-1)}'+
-    '.cin-bk-br{bottom:20px;right:20px;transform:scale(-1)}'+
-    '.cin-bk-bl{bottom:20px;left:20px;transform:scaleY(-1)}'+
-
-    /* cinema content */
+    '.cin-bk-tl{top:20px;left:20px}.cin-bk-tr{top:20px;right:20px;transform:scaleX(-1)}.cin-bk-br{bottom:20px;right:20px;transform:scale(-1)}.cin-bk-bl{bottom:20px;left:20px;transform:scaleY(-1)}'+
     '.cin-logo{font-size:12px;font-weight:800;letter-spacing:.3em;color:var(--sf);font-family:\'Syne\',sans-serif;text-transform:uppercase;margin-bottom:4px;position:relative;z-index:2}'+
     '.cin-sub{font-size:8px;font-weight:700;letter-spacing:.26em;color:var(--ink4);text-transform:uppercase;margin-bottom:28px;position:relative;z-index:2}'+
     '.cin-qry{font-size:clamp(14px,3vw,20px);font-weight:800;font-family:\'Syne\',sans-serif;color:var(--ink);letter-spacing:-.02em;max-width:500px;text-align:center;margin-bottom:28px;padding:0 24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:2}'+
-
-    /* cinema agent rows */
     '.cin-list{display:flex;flex-direction:column;width:min(440px,90vw);position:relative;z-index:2}'+
     '.cin-row{display:flex;align-items:center;gap:12px;padding:6px 16px;border-radius:11px;opacity:0;transform:translateX(-10px);transition:opacity .28s ease,transform .28s ease,background .2s}'+
     '.cin-row.cr-on{opacity:1;transform:none;background:rgba(255,122,0,.032)}'+
@@ -296,30 +290,82 @@
     '.cin-chk{color:#22c55e;font-size:12px;display:none;flex-shrink:0}'+
     '.cin-row.cr-done .cin-chk{display:block}'+
     '.cin-row.cr-done .cin-spin{display:none!important}'+
-
-    /* cinema progress */
     '.cin-prog{margin-top:24px;width:min(440px,90vw);position:relative;z-index:2}'+
     '.cin-prog-lbl{font-size:8.5px;font-weight:700;letter-spacing:.14em;color:var(--ink4);text-transform:uppercase;margin-bottom:6px;display:flex;justify-content:space-between}'+
     '.cin-bar-track{height:2.5px;border-radius:3px;background:var(--border2);overflow:hidden}'+
     '.cin-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#FF6600,#FFB347,#FF7A00);background-size:200% 100%;width:0%;transition:width .3s cubic-bezier(.4,0,.2,1);animation:dvBarShimmer 2s linear infinite}'+
     '@keyframes dvBarShimmer{0%{background-position:0%}100%{background-position:200%}}'+
 
-    /* ── Knowledge page panels ────────────────────────────── */
+    /* ── Knowledge page agent panels ──────── */
     '.dvag-kp{background:var(--glass);backdrop-filter:blur(20px);border:1.5px solid var(--border2);border-radius:22px;padding:20px 24px;margin-bottom:16px;animation:kpPanelIn .38s var(--sp)}'+
     '.dvag-kph{display:flex;align-items:center;gap:8px;margin-bottom:14px}'+
     '.dvag-kpt{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--ink3);text-transform:uppercase}'+
     '.dvag-kps{margin-left:auto;font-size:10px;color:var(--ink4)}'+
     '.dvag-kspin{width:14px;height:14px;border:2px solid rgba(255,122,0,.22);border-top-color:var(--sf);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}'+
+
+    /* ── FUTURISTIC RESULTS FEED ────────────── */
+    /* AI Insight card */
+    '#dvag-ai-panel{background:linear-gradient(148deg,rgba(255,122,0,.09),rgba(255,60,0,.04));border:1.5px solid rgba(255,122,0,.32);border-radius:22px;padding:22px 24px;margin-bottom:16px;position:relative;overflow:hidden;animation:kpPanelIn .3s var(--sp)}'+
+    '#dvag-ai-panel::before{content:\'\';position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(255,122,0,.12),transparent 70%);pointer-events:none}'+
+    '#dvag-ai-panel::after{content:\'\';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(255,122,0,.5),transparent);animation:dvAurora 4s ease-in-out infinite}'+
+    '.dvag-ai-hdr{display:flex;align-items:center;gap:9px;margin-bottom:13px}'+
+    '.dvag-ai-badge{font-size:8px;font-weight:800;letter-spacing:.15em;padding:3px 10px;border-radius:20px;background:rgba(255,122,0,.12);border:1px solid rgba(255,122,0,.28);color:var(--sf);text-transform:uppercase}'+
+    '.dvag-ai-free{font-size:8px;color:var(--ink4);margin-left:auto;padding:2px 7px;border-radius:10px;background:rgba(52,168,83,.08);border:1px solid rgba(52,168,83,.18);color:#34A853}'+
+    '.dvag-ai-text{font-size:13.5px;color:var(--ink2);line-height:1.75;position:relative;z-index:1}'+
+
+    /* Multi-source cards grid */
+    '#dvag-msrc{margin-bottom:16px}'+
+    '.dvag-msrc-hdr{font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--ink4);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}'+
+    '.dvag-msrc-hdr::after{content:\'\';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent)}'+
+    '.dvag-src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}'+
+    '.dvag-src-card{background:var(--glass);border:1.5px solid var(--border2);border-radius:16px;padding:14px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;text-decoration:none;display:block}'+
+    '.dvag-src-card::before{content:\'\';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,122,0,.04),transparent 70%);opacity:0;transition:opacity .3s;pointer-events:none}'+
+    '.dvag-src-card:hover{transform:translateY(-3px);border-color:rgba(255,122,0,.28);box-shadow:0 12px 32px -8px rgba(255,122,0,.15)}'+
+    '.dvag-src-card:hover::before{opacity:1}'+
+    '.dvag-src-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}'+
+    '.dvag-src-ico{font-size:18px;flex-shrink:0}'+
+    '.dvag-src-name{font-size:12px;font-weight:700;color:var(--ink)}'+
+    '.dvag-src-reason{font-size:11px;color:var(--ink3);margin-bottom:8px;line-height:1.4}'+
+    '.dvag-src-bar{height:2px;border-radius:2px;background:var(--border2);overflow:hidden;margin-top:auto}'+
+    '.dvag-src-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}'+
+    '.dvag-src-action{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;margin-top:8px;color:var(--ink3)}'+
+    '.dvag-src-card:hover .dvag-src-action{color:var(--sf)}'+
+
+    /* Layered knowledge timeline */
+    '#dvag-timeline{margin-bottom:16px}'+
+    '.dvag-tl-hdr{font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--ink4);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}'+
+    '.dvag-tl-hdr::after{content:\'\';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent)}'+
+    '.dvag-tl-item{display:flex;gap:14px;position:relative;padding-bottom:14px}'+
+    '.dvag-tl-item:not(:last-child)::before{content:\'\';position:absolute;left:13px;top:26px;bottom:0;width:1px;background:linear-gradient(180deg,rgba(255,122,0,.25),transparent)}'+
+    '.dvag-tl-dot{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;border:1.5px solid;transition:box-shadow .3s}'+
+    '.dvag-tl-body{flex:1;padding-top:3px}'+
+    '.dvag-tl-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}'+
+    '.dvag-tl-content{font-size:13px;color:var(--ink2);line-height:1.6}'+
+
+    /* Gita wisdom on knowledge page — enhanced */
     '#dvag-gita-kp{border-color:rgba(217,119,6,.32)!important;background:linear-gradient(148deg,rgba(217,119,6,.06),rgba(180,83,9,.025))!important}'+
-    /* AI panel */
-    '#dvag-ai-kp{border-color:rgba(99,102,241,.22)!important;background:linear-gradient(148deg,rgba(99,102,241,.05),rgba(139,92,246,.025))!important}';
+    '.dvag-gita-verse{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.9;font-family:serif;margin-bottom:13px;padding:14px 16px;background:rgba(217,119,6,.07);border-radius:12px;border-left:3px solid #D97706;position:relative}'+
+    '.dvag-gita-verse::before{content:\'\\201C\';position:absolute;top:-8px;left:10px;font-size:36px;color:rgba(217,119,6,.2);font-family:serif;line-height:1}'+
+
+    /* Wisdom panel on search page (after each search) */
+    '#dvag-wisdom-bar{width:100%;max-width:700px;margin:10px auto 0;z-index:10;opacity:0;transform:translateY(8px);transition:opacity .4s ease,transform .4s ease;display:none}'+
+    '#dvag-wisdom-bar.wis-show{opacity:1;transform:none;display:block}'+
+    '.dvag-wis-inner{padding:11px 16px;background:linear-gradient(135deg,rgba(217,119,6,.055),rgba(255,122,0,.02));border:1px solid rgba(217,119,6,.18);border-radius:13px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .2s}'+
+    '.dvag-wis-inner:hover{background:linear-gradient(135deg,rgba(217,119,6,.09),rgba(255,122,0,.04))}'+
+    '.dvag-wis-om{font-size:16px;flex-shrink:0;animation:dvOmGlow 3s ease-in-out infinite}'+
+    '.dvag-wis-ref{font-size:9px;font-weight:700;color:#D97706;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}'+
+    '.dvag-wis-text{font-size:12px;color:var(--ink2);line-height:1.5;font-style:italic;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'+
+    '.dvag-wis-expand{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.2);display:flex;align-items:center;justify-content:center;font-size:10px;color:#D97706}'+
+
+    /* @keyframes shared */
+    '@keyframes kpPanelIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}'+
+    '@keyframes chin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'+
+    '@keyframes spin{to{transform:rotate(360deg)}}';
 
     document.head.appendChild(el);
   }
 
-  /* ────────────────────────────────────────────────────────────
-     5. AMBIENT CHROME ELEMENTS
-  ──────────────────────────────────────────────────────────── */
+  /* ── 5. AMBIENT CHROME ──────────────────────────────────────── */
   function buildAmbient(){
     if(document.getElementById('dvag-mesh')) return;
     ['dvag-mesh','dvag-scanlines','dvag-aurora'].forEach(function(id){
@@ -328,12 +374,41 @@
     });
   }
 
-  /* ────────────────────────────────────────────────────────────
-     6. AGENT HUD
-  ──────────────────────────────────────────────────────────── */
+  /* ── 6. SEARCH-FOCUS HIDE LOGIC ─────────────────────────────── */
+  function initSearchFocusHide(){
+    var inp = document.getElementById('sb-input');
+    if(!inp || inp._dvFocusHooked) return;
+    inp._dvFocusHooked = true;
+
+    var sp = document.getElementById('search-page');
+
+    function onFocus(){
+      if(sp) sp.classList.add('dvag-focused');
+    }
+    function onBlur(){
+      /* Only remove if input is empty */
+      setTimeout(function(){
+        var val = inp.value || '';
+        if(!val.trim() && sp) sp.classList.remove('dvag-focused');
+      }, 150);
+    }
+    function onInput(){
+      var val = inp.value || '';
+      if(val.trim().length > 0){
+        if(sp) sp.classList.add('dvag-focused');
+      } else {
+        if(sp) sp.classList.remove('dvag-focused');
+      }
+    }
+
+    inp.addEventListener('focus', onFocus);
+    inp.addEventListener('blur',  onBlur);
+    inp.addEventListener('input', onInput);
+  }
+
+  /* ── 7. AGENT HUD ───────────────────────────────────────────── */
   function buildHUD(){
     if(document.getElementById('dvag-hud')) return;
-
     var hud=document.createElement('div');
     hud.id='dvag-hud';
     hud.innerHTML=
@@ -353,16 +428,12 @@
         '</div>';
       }).join('')+
       '</div>';
-
-    /* Insert directly after the desktop search bar (#desktop-search) */
     var sb=document.getElementById('desktop-search');
     if(sb&&sb.parentNode){ sb.parentNode.insertBefore(hud,sb.nextSibling); }
     else { var sp=document.getElementById('search-page'); if(sp) sp.appendChild(hud); }
-
     requestAnimationFrame(function(){ setTimeout(function(){ hud.classList.add('hud-show'); },250); });
   }
 
-  /* tile state helpers */
   function tSet(id,st){
     var c=document.getElementById('dvt-'+id);
     var t=document.getElementById('dvtk-'+id);
@@ -372,11 +443,8 @@
   }
   function allStandby(){ AGENTS.forEach(function(ag){ tSet(ag.id,'idle'); }); }
 
-  /* ────────────────────────────────────────────────────────────
-     7. GITA RIBBON (ambient wisdom, appears below HUD)
-  ──────────────────────────────────────────────────────────── */
-  var _ribbonBuilt=false;
-  var _ribbonLoaded=false;
+  /* ── 8. GITA RIBBON ─────────────────────────────────────────── */
+  var _ribbonBuilt=false, _ribbonLoaded=false;
 
   function buildRibbon(){
     if(document.getElementById('dvag-ribbon')) return;
@@ -391,11 +459,8 @@
         '</div>'+
         '<button class="dvag-rbn-toggle" id="dvag-rbn-btn" title="Toggle">−</button>'+
       '</div>';
-
     var hud=document.getElementById('dvag-hud');
     if(hud&&hud.parentNode){ hud.parentNode.insertBefore(r,hud.nextSibling); }
-
-    /* Collapse toggle */
     var btn=document.getElementById('dvag-rbn-btn');
     var content=document.getElementById('dvag-rbn-content');
     var collapsed=false;
@@ -406,54 +471,94 @@
         btn.textContent=collapsed?'+':'−';
       });
     }
-
     requestAnimationFrame(function(){ setTimeout(function(){ r.classList.add('rbn-show'); },400); });
-
     if(!_ribbonLoaded){ _ribbonLoaded=true; loadRibbonVerse(); }
     _ribbonBuilt=true;
   }
 
   async function loadRibbonVerse(){
-    var ref=pickDailyRef();
+    var ref=pickSessionVerse();
     var data=await fetchGitaVerse(ref.ch,ref.v);
     var c=document.getElementById('dvag-rbn-content');
     if(!c) return;
     if(!data){ c.innerHTML='<div class="dvag-rbn-tr" style="font-style:normal;opacity:.55">Wisdom loads momentarily…</div>'; return; }
+    renderRibbonData(c, data, ref);
+  }
+
+  function renderRibbonData(c, data, ref){
     var skt=data.slok||'';
     var tr=(data.tej&&data.tej.et)||(data.siva&&data.siva.et)||(data.purohit&&data.purohit.et)||'';
     c.innerHTML=
       '<div class="dvag-rbn-ref">Bhagavad Gita '+ref.ch+'.'+ref.v+'</div>'+
       (skt?'<div class="dvag-rbn-skt">'+esc(skt.slice(0,110))+(skt.length>110?'…':'')+'</div>':'')+
-      (tr?'<div class="dvag-rbn-tr">'+esc(tr.slice(0,150))+(tr.length>150?'…':'')+'</div>':'');
+      (tr?'<div class="dvag-rbn-tr">'+esc(tr.slice(0,160))+(tr.length>160?'…':'')+'</div>':'');
   }
 
-  /* update ribbon with a search-relevant verse */
+  /* Per-search: show a NEW verse every time */
   async function updateRibbonForQuery(query){
-    /* Always show a verse — use query hash for variety, topic-match if relevant */
-    var ref=selectGitaRef(query)||pickVerseForQuery(query);
+    var ref=selectGitaRef(query)||pickSessionVerse();
     var data=await fetchGitaVerse(ref.ch,ref.v);
     var c=document.getElementById('dvag-rbn-content');
     if(!c||!data) return;
-    var skt=data.slok||'';
-    var tr=(data.tej&&data.tej.et)||(data.siva&&data.siva.et)||(data.purohit&&data.purohit.et)||'';
-    /* fade update */
-    c.style.opacity='0';c.style.transition='opacity .25s';
+    c.style.opacity='0'; c.style.transition='opacity .25s';
     setTimeout(function(){
-      c.innerHTML=
-        '<div class="dvag-rbn-ref">Bhagavad Gita '+ref.ch+'.'+ref.v+'</div>'+
-        (skt?'<div class="dvag-rbn-skt">'+esc(skt.slice(0,110))+(skt.length>110?'…':'')+'</div>':'')+
-        (tr?'<div class="dvag-rbn-tr">'+esc(tr.slice(0,150))+(tr.length>150?'…':'')+'</div>':'');
+      renderRibbonData(c, data, ref);
       c.style.opacity='1';
       setTimeout(function(){ c.style.transition=''; },300);
     },200);
   }
 
-  /* ────────────────────────────────────────────────────────────
-     8. CINEMA OVERLAY
-  ──────────────────────────────────────────────────────────── */
+  /* ── 9. WISDOM BAR (shown below results feed) ────────────────── */
+  function buildWisdomBar(){
+    if(document.getElementById('dvag-wisdom-bar')) return;
+    var wb=document.createElement('div');
+    wb.id='dvag-wisdom-bar';
+    wb.innerHTML=
+      '<div class="dvag-wis-inner" onclick="document.getElementById(\'dvag-wisdom-bar\').classList.toggle(\'expanded\')">'+
+        '<div class="dvag-wis-om">ॐ</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div class="dvag-wis-ref" id="dvag-wis-ref">Bhagavad Gita · Loading…</div>'+
+          '<div class="dvag-wis-text" id="dvag-wis-text">Retrieving sacred wisdom…</div>'+
+        '</div>'+
+        '<div class="dvag-wis-expand">✦</div>'+
+      '</div>'+
+      '<div id="dvag-wis-full" style="display:none;padding:12px 14px 14px;font-size:13px;color:var(--ink2);line-height:1.7;background:rgba(217,119,6,.04);border:1px solid rgba(217,119,6,.12);border-top:none;border-radius:0 0 13px 13px;font-style:italic"></div>';
+    /* Insert after HUD ribbon */
+    var rbn=document.getElementById('dvag-ribbon');
+    if(rbn&&rbn.parentNode) rbn.parentNode.insertBefore(wb, rbn.nextSibling);
+  }
+
+  async function showWisdomForQuery(query){
+    var wb=document.getElementById('dvag-wisdom-bar');
+    if(!wb) return;
+    var refEl=document.getElementById('dvag-wis-ref');
+    var txtEl=document.getElementById('dvag-wis-text');
+    var fullEl=document.getElementById('dvag-wis-full');
+    if(refEl) refEl.textContent='Bhagavad Gita · Loading…';
+    if(txtEl) txtEl.textContent='Retrieving sacred wisdom…';
+    if(fullEl) fullEl.style.display='none';
+    wb.style.display='block';
+    setTimeout(function(){ wb.classList.add('wis-show'); },30);
+
+    var ref=selectGitaRef(query)||pickSessionVerse();
+    var data=await fetchGitaVerse(ref.ch,ref.v);
+    if(!data){ if(refEl) refEl.textContent='Bhagavad Gita'; if(txtEl) txtEl.textContent='Wisdom is beyond words.'; return; }
+    var skt=data.slok||'';
+    var tr=(data.tej&&data.tej.et)||(data.siva&&data.siva.et)||(data.purohit&&data.purohit.et)||'';
+    if(refEl) refEl.textContent='Bhagavad Gita '+ref.ch+'.'+ref.v;
+    if(txtEl) txtEl.textContent=tr||skt;
+    if(fullEl){
+      fullEl.innerHTML=(skt?'<div style="font-family:serif;margin-bottom:8px;color:var(--ink);opacity:.85">'+esc(skt)+'</div>':'')+(tr?'<div>'+esc(tr)+'</div>':'');
+    }
+    /* Toggle full on click */
+    wb.querySelector('.dvag-wis-inner').onclick=function(){
+      if(fullEl) fullEl.style.display=(fullEl.style.display==='none'?'block':'none');
+    };
+  }
+
+  /* ── 10. CINEMA OVERLAY ─────────────────────────────────────── */
   function buildCinema(){
     if(document.getElementById('dvag-cinema')) return;
-    /* SVG corner bracket */
     var bk='<svg width="40" height="40" fill="none" stroke="rgba(255,122,0,.5)" stroke-width="1.5" stroke-linecap="round"><path d="M0 14 L0 0 L14 0"/></svg>';
     var ov=document.createElement('div');
     ov.id='dvag-cinema';
@@ -489,10 +594,8 @@
     document.body.appendChild(ov);
   }
 
-  /* cinema helpers */
   function cinRow(id,st){
-    var r=document.getElementById('cr-'+id);
-    var t=document.getElementById('ct-'+id);
+    var r=document.getElementById('cr-'+id),t=document.getElementById('ct-'+id);
     var ag=AGENTS.find(function(a){ return a.id===id; });
     if(r){ r.classList.remove('cr-on','cr-done'); if(st==='on') r.classList.add('cr-on'); if(st==='done') r.classList.add('cr-done'); }
     if(t) t.textContent=(st==='on'?(ag&&ag.task||'Processing…'):(st==='done'?(ag&&ag.done||'Done ✓'):(ag&&ag.role||'')));
@@ -504,126 +607,74 @@
     if(p) p.textContent=Math.round(pct)+'%';
   }
 
-  /* ────────────────────────────────────────────────────────────
-     9. SEARCH ANIMATION
-  ──────────────────────────────────────────────────────────── */
+  /* ── 11. SEARCH ANIMATION ───────────────────────────────────── */
   var _animBusy=false;
-
   function runAnimation(query,onDone){
     if(_animBusy){ onDone&&onDone(); return; }
     _animBusy=true;
-
     var ov=document.getElementById('dvag-cinema');
     var qEl=document.getElementById('cin-qry');
     if(qEl) qEl.textContent='\u201C'+query+'\u201D';
-
     AGENTS.forEach(function(ag){ cinRow(ag.id,'idle'); });
-    cinProg(0,'Initializing agents…');
-    allStandby();
+    cinProg(0,'Initializing agents…'); allStandby();
     if(ov) ov.classList.add('cin-on');
-
-    var STEP=255, HOLD=110;
+    var STEP=255,HOLD=110;
     AGENTS.forEach(function(ag,i){
-      setTimeout(function(){
-        cinRow(ag.id,'on');
-        tSet(ag.id,'active');
-        cinProg((i/AGENTS.length)*80, ag.task);
-      }, i*STEP);
-      setTimeout(function(){
-        cinRow(ag.id,'done');
-        tSet(ag.id,'done');
-      }, i*STEP+STEP+HOLD);
+      setTimeout(function(){ cinRow(ag.id,'on'); tSet(ag.id,'active'); cinProg((i/AGENTS.length)*80,ag.task); },i*STEP);
+      setTimeout(function(){ cinRow(ag.id,'done'); tSet(ag.id,'done'); },i*STEP+STEP+HOLD);
     });
-
     var total=AGENTS.length*STEP+STEP+HOLD+80;
-    setTimeout(function(){ cinProg(100,'All agents ready →'); }, total-80);
+    setTimeout(function(){ cinProg(100,'All agents ready →'); },total-80);
     setTimeout(function(){
       if(ov) ov.classList.remove('cin-on');
-      _animBusy=false;
-      onDone&&onDone();
-    }, total+180);
+      _animBusy=false; onDone&&onDone();
+    },total+180);
   }
 
-  /* ────────────────────────────────────────────────────────────
-     10. AGENT-TAGGED DROPDOWN SUGGESTIONS
-  ──────────────────────────────────────────────────────────── */
-  var _lastDropQ='';
-  var _vegaTimer=null;
-
-  function removeDropSection(){
-    var el=document.getElementById('dvag-drop-section');
-    if(el) el.remove();
-  }
+  /* ── 12. DROPDOWN AGENT SECTION ─────────────────────────────── */
+  var _lastDropQ='', _vegaTimer=null;
+  function removeDropSection(){ var el=document.getElementById('dvag-drop-section'); if(el) el.remove(); }
 
   function injectDropSection(query){
     if(!query||query.length<2) return;
     if(query===_lastDropQ) return;
     _lastDropQ=query;
-
     var drop=document.getElementById('drop');
     if(!drop||!drop.classList.contains('open')) return;
-
     removeDropSection();
-
     var intent=detectIntent(query);
     var routeIds=PLATFORM_ROUTES[intent.cat]||PLATFORM_ROUTES.general;
     var routes=routeIds.slice(0,4).map(function(id){ return Object.assign({id:id},PM[id]||{}); });
-
     var sec=document.createElement('div');
     sec.id='dvag-drop-section';
-
-    /* Intent tag */
-    var intentColor=intent.color||'#4285F4';
-    var intentBg=hexRgba(intentColor,0.09);
-    var intentBorder=hexRgba(intentColor,0.22);
-    var intentHtml=
-      '<div class="dvag-drop-hdr">'+
-        '<span class="dvag-drop-tag" style="background:'+intentBg+';border:1px solid '+intentBorder+';color:'+intentColor+'">'+
-          '<span style="font-size:9px">◎</span>'+
-          'Orion · '+intent.agTag+
-        '</span>'+
-        '<span style="font-size:9px;color:var(--ink4);margin-left:auto">'+intent.icon+' '+intent.cat+'</span>'+
-      '</div>';
-
-    /* Nova platform chips */
-    var novaBg=hexRgba('#4285F4',0.07);
-    var novaChips=
-      '<div class="dvag-drop-section-lbl" style="color:rgba(66,133,244,.7)">'+
-        '<span style="color:#4285F4;font-size:9px">◈</span> Nova · Platform Navigator'+
-      '</div>'+
-      '<div class="dvag-drop-chips">'+
-      routes.map(function(r,i){
-        if(!r.name) return '';
-        return '<button class="dvag-chip" style="border-color:'+r.color+'33;color:'+r.color+';animation-delay:'+(i*.06)+'s" '+
-          'onclick="window.open(\''+r.url(query).replace(/'/g,"\\'")+"','_blank');event.stopPropagation()\">"+ 
-          r.emoji+' '+r.name+
-        '</button>';
-      }).join('')+
-      '</div>';
-
-    /* Vega discovery chips (async) */
+    var ic=intent.color||'#4285F4';
+    var ib=hexRgba(ic,0.09), ibrd=hexRgba(ic,0.22);
+    var novaChips='<div class="dvag-drop-chips">'+routes.map(function(r,i){
+      if(!r.name) return '';
+      return '<button class="dvag-chip" style="border-color:'+r.color+'33;color:'+r.color+';animation-delay:'+(i*.06)+'s" onclick="window.open(\''+r.url(query).replace(/'/g,"\\'")+"','_blank');event.stopPropagation()\">"+r.emoji+' '+r.name+'</button>';
+    }).join('')+'</div>';
     var vegaHtml='';
-    if(query.trim().split(' ').length<=3){
-      vegaHtml=
-        '<div class="dvag-drop-section-lbl" style="color:rgba(156,39,176,.7);margin-top:8px">'+
-          '<span style="color:#9C27B0;font-size:9px">◇</span> Vega · Discovery Explorer'+
-        '</div>'+
+    if(query.trim().split(' ').length<=4){
+      vegaHtml='<div class="dvag-drop-section-lbl" style="color:rgba(156,39,176,.7);margin-top:8px"><span style="color:#9C27B0;font-size:9px">◇</span> Vega · Related Topics</div>'+
         '<div class="dvag-drop-chips" id="dvag-vega-chips"><div style="font-size:11px;color:var(--ink4);font-style:italic">Exploring…</div></div>';
     }
-
-    sec.innerHTML=intentHtml+novaBg+novaChips+vegaHtml;
+    sec.innerHTML=
+      '<div class="dvag-drop-hdr">'+
+        '<span class="dvag-drop-tag" style="background:'+ib+';border:1px solid '+ibrd+';color:'+ic+'"><span style="font-size:9px">◎</span>Orion · '+intent.agTag+'</span>'+
+        '<span style="font-size:9px;color:var(--ink4);margin-left:auto">'+intent.icon+' '+intent.cat+'</span>'+
+      '</div>'+
+      '<div class="dvag-drop-section-lbl" style="color:rgba(66,133,244,.7)"><span style="color:#4285F4;font-size:9px">◈</span> Nova · Platform Routes</div>'+
+      novaChips+vegaHtml;
     drop.appendChild(sec);
-
-    /* Load Vega chips async */
     if(vegaHtml){
       clearTimeout(_vegaTimer);
       _vegaTimer=setTimeout(function(){
         fetchWikiLinks(query).then(function(topics){
           var el=document.getElementById('dvag-vega-chips');
           if(!el) return;
-          if(!topics.length){ el.innerHTML='<div style="font-size:11px;color:var(--ink4)">No related topics found</div>'; return; }
+          if(!topics.length){ el.innerHTML='<div style="font-size:11px;color:var(--ink4)">No related topics</div>'; return; }
           el.innerHTML='';
-          topics.slice(0,4).forEach(function(topic,i){
+          topics.slice(0,5).forEach(function(topic,i){
             var btn=document.createElement('button');
             btn.className='dvag-chip';
             btn.style.cssText='border-color:rgba(156,39,176,.28);color:#9C27B0;animation-delay:'+(i*.06)+'s';
@@ -640,7 +691,6 @@
     }
   }
 
-  /* hook into sb-input */
   function hookDropInput(){
     var inp=document.getElementById('sb-input');
     if(!inp||inp._dvDropHooked) return;
@@ -650,7 +700,6 @@
       clearTimeout(_t);
       _t=setTimeout(function(){ injectDropSection(inp.value.trim()); },200);
     });
-    /* clear agent section when dropdown closes */
     var drop=document.getElementById('drop');
     if(drop){
       var obs=new MutationObserver(function(){
@@ -660,118 +709,61 @@
     }
   }
 
-  /* ────────────────────────────────────────────────────────────
-     10-B. TYPING DETECTION — hide panels while user types
-  ──────────────────────────────────────────────────────────── */
-  function hookTypingDetection(){
-    var inp=document.getElementById('sb-input');
-    if(!inp||inp._dvTypingHooked) return;
-    inp._dvTypingHooked=true;
-
-    function setTypingMode(active){
-      var ps=document.querySelector('.platforms-section');
-      var ss=document.getElementById('saved-quick');
-      var hr=document.querySelector('.hint-row');
-      if(ps) ps.classList.toggle('typing',active);
-      if(ss) ss.classList.toggle('typing',active);
-      if(hr){
-        hr.style.transition='opacity .22s ease,transform .22s ease';
-        hr.style.opacity=active?'0':'1';
-        hr.style.pointerEvents=active?'none':'';
-      }
-    }
-
-    inp.addEventListener('input',function(){ setTypingMode(inp.value.trim().length>0); });
-    inp.addEventListener('focus',function(){ if(inp.value.trim().length>0) setTypingMode(true); });
-    inp.addEventListener('blur',function(){ setTimeout(function(){ if(!inp.value.trim()) setTypingMode(false); },200); });
-    var origClear=window.clearInput;
-    if(typeof origClear==='function'&&!origClear._dvTypingPatched){
-      window.clearInput=function(){
-        origClear.apply(this,arguments);
-        setTimeout(function(){ setTypingMode(false); },10);
-      };
-      window.clearInput._dvTypingPatched=true;
-    }
-  }
-
-  /* ────────────────────────────────────────────────────────────
-     10-C. FREE AI INSIGHT — Pollinations.ai (zero API key)
-  ──────────────────────────────────────────────────────────── */
-  async function fetchPollinationsInsight(query){
-    try{
-      var prompt='Give exactly 1 useful, specific insight (max 2 short sentences) about: +query+. Be direct. No preamble or quotes.';
-      var url='https://text.pollinations.ai/'+encodeURIComponent(prompt)+'?model=mistral&seed='+queryHash(query);
-      var ctrl=new AbortController();
-      var timer=setTimeout(function(){ ctrl.abort(); },7000);
-      var r=await fetch(url,{method:'GET',signal:ctrl.signal});
-      clearTimeout(timer);
-      if(!r.ok) return null;
-      var text=await r.text();
-      text=text.trim().replace(/^["']+|["']+$/g,'').replace(/
-/g,' ');
-      if(!text||text.length<10||text.length>380) return null;
-      return text;
-    }catch(e){ return null; }
-  }
-
-  function renderAiInsight(text){
-    var panel=document.getElementById('dvag-ai-kp');
-    var body=document.getElementById('dvag-ai-body');
-    var loading=document.getElementById('dvag-ai-loading');
-    if(!panel||!body) return;
-    if(loading) loading.style.display='none';
-    if(!text){ panel.style.display='none'; return; }
-    body.innerHTML=
-      '<div style="display:flex;align-items:flex-start;gap:11px;padding:12px 14px;'+
-      'background:linear-gradient(135deg,rgba(99,102,241,.07),rgba(139,92,246,.04));'+
-      'border:1.5px solid rgba(99,102,241,.18);border-radius:14px">'+
-        '<span style="font-size:18px;flex-shrink:0;filter:drop-shadow(0 0 5px rgba(99,102,241,.4))">✦</span>'+
-        '<div>'+
-          '<div style="font-size:9px;font-weight:800;letter-spacing:.16em;color:rgba(99,102,241,.75);text-transform:uppercase;margin-bottom:5px">Free AI · Pollinations Intelligence</div>'+
-          '<div style="font-size:13.5px;color:var(--ink2);line-height:1.68">'+esc(text)+'</div>'+
-        '</div>'+
-      '</div>';
-    panel.style.display='block';
-    kpFade(panel);
-  }
-
-  /* ────────────────────────────────────────────────────────────
-     11. KNOWLEDGE PAGE PANELS
-  ──────────────────────────────────────────────────────────── */
+  /* ── 13. FUTURISTIC KNOWLEDGE RESULT PANELS ─────────────────── */
   function ensureKPPanels(){
     if(document.getElementById('dvag-kp-root')) return;
     var kpInner=document.querySelector('#knowledge-page > div');
     if(!kpInner) return;
-
     var root=document.createElement('div');
     root.id='dvag-kp-root';
     root.innerHTML=[
+      /* AI Insight Panel */
+      '<div id="dvag-ai-panel" style="display:none">'+
+        '<div class="dvag-ai-hdr">'+
+          '<span style="font-size:17px">⚡</span>'+
+          '<span class="dvag-ai-badge">AI Insight · Pollinations</span>'+
+          '<span class="dvag-ai-free">Free · No API Key</span>'+
+        '</div>'+
+        '<div id="dvag-ai-loading" style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink3)">'+
+          '<div class="dvag-kspin" style="border:2px solid rgba(255,122,0,.2);border-top-color:var(--sf)"></div>'+
+          'Free AI generating insight…'+
+        '</div>'+
+        '<div id="dvag-ai-text" class="dvag-ai-text" style="display:none"></div>'+
+      '</div>',
+
+      /* Intent + Routing Panel */
       '<div id="dvag-intent-kp" class="dvag-kp" style="display:none;border-color:rgba(255,122,0,.22)">'+
         '<div class="dvag-kph"><span style="font-size:15px;flex-shrink:0">◎</span><span class="dvag-kpt" style="color:var(--sf)">Orion &amp; Nova · Intent + Routing</span><span class="dvag-kps">Agents 1–2</span></div>'+
         '<div id="dvag-intent-body"></div>'+
       '</div>',
+
+      /* Multi-Source Cards (futuristic grid) */
+      '<div id="dvag-msrc-panel" class="dvag-kp" style="display:none">'+
+        '<div class="dvag-kph"><span style="font-size:15px">🌐</span><span class="dvag-kpt">Multi-Source Navigator</span><span class="dvag-kps">All Agents</span></div>'+
+        '<div id="dvag-msrc-body"></div>'+
+      '</div>',
+
+      /* Context Panel */
       '<div id="dvag-context-kp" class="dvag-kp" style="display:none">'+
         '<div class="dvag-kph"><span style="font-size:15px;flex-shrink:0">◬</span><span class="dvag-kpt">Zenith · Context Interpreter</span><span class="dvag-kps">Agent 6</span></div>'+
         '<div id="dvag-context-body" style="font-size:13px;color:var(--ink2);line-height:1.7"></div>'+
       '</div>',
+
+      /* Discovery Panel */
       '<div id="dvag-discovery-kp" class="dvag-kp" style="display:none">'+
         '<div class="dvag-kph"><span style="font-size:15px;flex-shrink:0">◇</span><span class="dvag-kpt">Vega · Discovery Explorer</span><span class="dvag-kps">Agent 4</span></div>'+
         '<div id="dvag-disc-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px"><div class="dvag-kspin"></div>Exploring topics…</div>'+
         '<div id="dvag-disc-body" style="display:none;flex-wrap:wrap;gap:8px"></div>'+
       '</div>',
+
+      /* Helix Insights Panel */
       '<div id="dvag-insights-kp" class="dvag-kp" style="display:none">'+
         '<div class="dvag-kph"><span style="font-size:15px;flex-shrink:0">⬡</span><span class="dvag-kpt">Helix · Platform Analyst</span><span class="dvag-kps">Agent 5</span></div>'+
         '<div id="dvag-insights-body"></div>'+
       '</div>',
-      '<div id="dvag-ai-kp" class="dvag-kp" style="display:none">'+
-        '<div class="dvag-kph"><span style="font-size:15px;flex-shrink:0">✦</span><span class="dvag-kpt" style="color:rgba(99,102,241,.85)">Free AI · Pollinations Intelligence</span><span class="dvag-kps">no API key</span></div>'+
-        '<div id="dvag-ai-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">'+
-          '<div style="width:14px;height:14px;border:2px solid rgba(99,102,241,.2);border-top-color:rgba(99,102,241,.7);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'+
-          'Generating free AI insight…'+
-        '</div>'+
-        '<div id="dvag-ai-body"></div>'+
-      '</div>',
-      '<div id="dvag-gita-kp" class="dvag-kp" style="display:none" id="dvag-gita-kp">'+
+
+      /* Gita Panel */
+      '<div id="dvag-gita-kp" class="dvag-kp" style="display:none;border-color:rgba(217,119,6,.32)!important;background:linear-gradient(148deg,rgba(217,119,6,.06),rgba(180,83,9,.025))!important">'+
         '<div class="dvag-kph"><span style="font-size:18px;flex-shrink:0">ॐ</span><span class="dvag-kpt" style="color:#D97706">Vyasa · Gita Wisdom Teller</span><span class="dvag-kps">Agent 7</span></div>'+
         '<div id="dvag-gita-loading" style="display:flex;align-items:center;gap:10px;color:var(--ink3);font-size:13px">'+
           '<div style="width:14px;height:14px;border:2px solid rgba(217,119,6,.2);border-top-color:#D97706;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0"></div>'+
@@ -780,12 +772,6 @@
         '<div id="dvag-gita-body" style="display:none"></div>'+
       '</div>'
     ].join('');
-
-    /* Apply special styling to gita panel */
-    var gitaPanel=root.querySelector('#dvag-gita-kp');
-    if(gitaPanel){
-      gitaPanel.style.cssText='display:none;border-color:rgba(217,119,6,.32)!important;background:linear-gradient(148deg,rgba(217,119,6,.06),rgba(180,83,9,.025))!important';
-    }
 
     var kids=Array.from(kpInner.children);
     var anchor=null;
@@ -797,25 +783,44 @@
   function kpShow(id,show){ var el=document.getElementById(id); if(el) el.style.display=show?'block':'none'; }
   function kpFade(el){
     if(!el) return;
-    el.style.opacity='0';el.style.transform='translateY(10px)';
+    el.style.opacity='0'; el.style.transform='translateY(12px)';
     requestAnimationFrame(function(){
-      el.style.transition='opacity .3s ease,transform .3s ease';
-      el.style.opacity='1';el.style.transform='';
-      setTimeout(function(){ el.style.transition=''; },350);
+      el.style.transition='opacity .32s ease,transform .32s ease';
+      el.style.opacity='1'; el.style.transform='';
+      setTimeout(function(){ el.style.transition=''; },380);
     });
   }
 
-  /* KP renderers */
+  /* Render: AI Insight */
+  async function renderAIPanel(query){
+    kpShow('dvag-ai-panel',true);
+    var aiLoad=document.getElementById('dvag-ai-loading');
+    var aiText=document.getElementById('dvag-ai-text');
+    if(aiLoad) aiLoad.style.display='flex';
+    if(aiText) aiText.style.display='none';
+
+    var prompt='Give a short 2-sentence factual insight about: '+query+'. Be concise and helpful.';
+    var result=await fetchPollinationsAI(prompt);
+
+    if(aiLoad) aiLoad.style.display='none';
+    if(result && aiText){
+      aiText.style.display='block';
+      aiText.textContent=result;
+      kpFade(document.getElementById('dvag-ai-panel'));
+    } else {
+      kpShow('dvag-ai-panel',false);
+    }
+  }
+
+  /* Render: Intent + Routing */
   function renderIntentRouting(query,intent,routes){
     var body=document.getElementById('dvag-intent-body'); if(!body) return;
     var ic=intent.color||'#4285F4';
     body.innerHTML=
       '<div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:'+hexRgba(ic,0.07)+';border:1.5px solid '+hexRgba(ic,0.16)+';border-radius:13px;margin-bottom:14px">'+
         '<span style="font-size:20px">'+intent.icon+'</span>'+
-        '<div>'+
-          '<div style="font-size:9.5px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">◎ Orion detected</div>'+
-          '<div style="font-size:14px;font-weight:800;color:var(--ink);font-family:\'Syne\',sans-serif;text-transform:capitalize">'+esc(intent.cat)+' query</div>'+
-        '</div>'+
+        '<div><div style="font-size:9.5px;font-weight:700;color:var(--ink4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">◎ Orion detected</div>'+
+        '<div style="font-size:14px;font-weight:800;color:var(--ink);font-family:\'Syne\',sans-serif;text-transform:capitalize">'+esc(intent.cat)+' query</div></div>'+
       '</div>'+
       '<div style="font-size:9.5px;font-weight:700;letter-spacing:.1em;color:var(--ink4);text-transform:uppercase;margin-bottom:10px">◈ Nova · Recommended Platforms</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px">'+
@@ -826,17 +831,51 @@
           'onmouseenter="this.style.borderColor=\''+r.color+'44\';this.style.background=\'var(--sfbg2)\'" '+
           'onmouseleave="this.style.borderColor=\'\';this.style.background=\'var(--sfbg)\'" '+
           'id="dvag-rt-'+i+'">'+
-          '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">'+
-            '<span style="font-size:14px">'+r.emoji+'</span>'+
-            '<span style="font-size:12px;font-weight:700;color:var(--ink)">'+esc(r.name)+'</span>'+
-          '</div>'+
+          '<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><span style="font-size:14px">'+r.emoji+'</span>'+
+          '<span style="font-size:12px;font-weight:700;color:var(--ink)">'+esc(r.name)+'</span></div>'+
           '<div style="font-size:11px;color:var(--ink3)">'+esc(r.reason)+'</div>'+
         '</div>';
       }).join('')+'</div>';
     kpShow('dvag-intent-kp',true); kpFade(document.getElementById('dvag-intent-kp'));
-    routes.forEach(function(_,i){ var el=document.getElementById('dvag-rt-'+i); if(el) setTimeout(function(){ el.style.transition='opacity .28s ease,transform .28s ease,border-color .2s,background .2s'; el.style.opacity='1'; el.style.transform=''; },75+i*55); });
+    routes.forEach(function(_,i){
+      var el=document.getElementById('dvag-rt-'+i);
+      if(el) setTimeout(function(){ el.style.transition='opacity .28s ease,transform .28s ease,border-color .2s,background .2s'; el.style.opacity='1'; el.style.transform=''; },75+i*55);
+    });
   }
 
+  /* Render: Multi-Source futuristic cards */
+  function renderMultiSource(query, intent, routes){
+    var body=document.getElementById('dvag-msrc-body'); if(!body) return;
+    var relevanceScores=[92,85,78,71,64,58];
+    body.innerHTML='<div class="dvag-src-grid">'+
+      routes.slice(0,6).map(function(r,i){
+        if(!r.name) return '';
+        var score=relevanceScores[i]||50;
+        var url=r.url(query).replace(/'/g,"\\'");
+        return '<a href="'+url+'" target="_blank" rel="noopener" class="dvag-src-card">'+
+          '<div class="dvag-src-top">'+
+            '<span class="dvag-src-ico">'+r.emoji+'</span>'+
+            '<span class="dvag-src-name">'+esc(r.name)+'</span>'+
+          '</div>'+
+          '<div class="dvag-src-reason">'+esc(r.reason)+'</div>'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'+
+            '<div class="dvag-src-action">Search →</div>'+
+            '<span style="font-size:9px;font-weight:700;color:'+r.color+'">'+score+'% match</span>'+
+          '</div>'+
+          '<div class="dvag-src-bar"><div class="dvag-src-bar-fill" style="width:0%;background:'+r.color+';" data-w="'+score+'"></div></div>'+
+        '</a>';
+      }).join('')+
+    '</div>';
+    kpShow('dvag-msrc-panel',true); kpFade(document.getElementById('dvag-msrc-panel'));
+    /* Animate relevance bars */
+    setTimeout(function(){
+      body.querySelectorAll('.dvag-src-bar-fill').forEach(function(el){
+        el.style.width=el.getAttribute('data-w')+'%';
+      });
+    },400);
+  }
+
+  /* Render: Context */
   function renderContext(c){
     if(!c||!c.length){ kpShow('dvag-context-kp',false); return; }
     var body=document.getElementById('dvag-context-body'); if(!body) return;
@@ -850,9 +889,9 @@
     c.forEach(function(_,i){ setTimeout(function(){ var el=document.getElementById('dvag-cx-'+i); if(el){ el.style.transition='opacity .25s ease,transform .25s ease'; el.style.opacity='1'; el.style.transform=''; } },100+i*55); });
   }
 
+  /* Render: Discovery */
   function renderDiscovery(topics,query){
-    var ld=document.getElementById('dvag-disc-loading');
-    var bd=document.getElementById('dvag-disc-body');
+    var ld=document.getElementById('dvag-disc-loading'),bd=document.getElementById('dvag-disc-body');
     if(ld) ld.style.display='none';
     if(!topics||!topics.length){ kpShow('dvag-discovery-kp',false); return; }
     if(!bd) return;
@@ -875,6 +914,7 @@
     kpShow('dvag-discovery-kp',true); kpFade(document.getElementById('dvag-discovery-kp'));
   }
 
+  /* Render: Helix Insights */
   function renderInsights(intent){
     var body=document.getElementById('dvag-insights-body'); if(!body) return;
     var T={
@@ -883,19 +923,19 @@
         {icon:'🛍️',plat:'Flipkart',tip:'Use F-Assured filter for fast delivery. Check No Cost EMI options.',color:'#2874F0'}
       ],
       tutorial:[
-        {icon:'▶️',plat:'YouTube',tip:'Filter by Upload Date → This Year. Use Chapters for structured learning.',color:'#FF0000'},
-        {icon:'🔴',plat:'Reddit',tip:'Subreddit wikis have curated learning roadmaps and resource lists.',color:'#FF4500'}
+        {icon:'▶️',plat:'YouTube',tip:'Filter by Upload Date → This Year. Use video Chapters for structured learning.',color:'#FF0000'},
+        {icon:'🔴',plat:'Reddit',tip:'Subreddit wikis often have curated learning roadmaps and top resource lists.',color:'#FF4500'}
       ],
       programming:[
-        {icon:'📋',plat:'Stack Overflow',tip:'Sort by Votes not Newest. Green tick = accepted answer.',color:'#F48024'},
-        {icon:'🐙',plat:'GitHub',tip:'Search Issues and Discussions tabs for bug workarounds first.',color:'#24292e'}
+        {icon:'📋',plat:'Stack Overflow',tip:'Sort by Votes not Newest. A green tick = accepted answer with verified solution.',color:'#F48024'},
+        {icon:'🐙',plat:'GitHub',tip:'Search Issues and Discussions tabs for real bug workarounds before asking new questions.',color:'#24292e'}
       ],
-      discussion:[{icon:'🔴',plat:'Reddit',tip:'Sort by Top (All Time) for best community insights on any topic.',color:'#FF4500'}],
-      knowledge:[{icon:'📖',plat:'Wikipedia',tip:'Jump straight to References for primary sources. Check the Talk page for disputes.',color:'#3366CC'}],
-      spiritual:[{icon:'ॐ',plat:'Vyasa Agent',tip:'See the Vyasa panel below for a relevant Bhagavad Gita verse on this topic.',color:'#D97706'}],
-      video:[{icon:'▶️',plat:'YouTube',tip:'Use hashtags (#) to find niche content. Creative Commons filter for reusable videos.',color:'#FF0000'}],
-      local:[{icon:'🗺️',plat:'Google Maps',tip:'Enable "Open Now" filter. Check Q&A for crowd-sourced local tips.',color:'#34A853'}],
-      general:[{icon:'🔍',plat:'Google',tip:'Use quotes for exact phrases. Add site: to search within a domain.',color:'#4285F4'}]
+      discussion:[{icon:'🔴',plat:'Reddit',tip:'Sort by Top (All Time) to find the best community insights on any topic.',color:'#FF4500'}],
+      knowledge:[{icon:'📖',plat:'Wikipedia',tip:'Jump to References for primary sources. Check the Talk page for content disputes.',color:'#3366CC'}],
+      spiritual:[{icon:'ॐ',plat:'Vyasa · Gita Wisdom',tip:'A relevant Bhagavad Gita verse for this spiritual query has been retrieved in the Vyasa panel below.',color:'#D97706'}],
+      video:[{icon:'▶️',plat:'YouTube',tip:'Use hashtags (#) to find niche content creators. Creative Commons filter for reusable videos.',color:'#FF0000'}],
+      local:[{icon:'🗺️',plat:'Google Maps',tip:'Enable "Open Now" filter. Check the Q&A section for crowd-sourced local tips.',color:'#34A853'}],
+      general:[{icon:'🔍',plat:'Google',tip:'Use quotes for exact phrases. Add site: to restrict search to one domain.',color:'#4285F4'}]
     };
     var tips=T[intent.cat]||T.general;
     body.innerHTML=tips.map(function(tip,i){
@@ -912,9 +952,9 @@
     tips.forEach(function(_,i){ setTimeout(function(){ var el=document.getElementById('dvag-ip-'+i); if(el){ el.style.transition='opacity .27s ease,transform .27s ease'; el.style.opacity='1'; el.style.transform=''; } },75+i*55); });
   }
 
+  /* Render: Gita KP */
   function renderGitaKP(data,ch,v){
-    var ld=document.getElementById('dvag-gita-loading');
-    var bd=document.getElementById('dvag-gita-body');
+    var ld=document.getElementById('dvag-gita-loading'),bd=document.getElementById('dvag-gita-body');
     if(ld) ld.style.display='none';
     if(!data){ kpShow('dvag-gita-kp',false); return; }
     if(!bd) return;
@@ -922,16 +962,14 @@
     var tr=(data.tej&&data.tej.et)||(data.siva&&data.siva.et)||(data.purohit&&data.purohit.et)||'';
     var mn=(data.tej&&data.tej.ec)||(data.siva&&data.siva.ec)||'';
     bd.innerHTML=
-      '<div style="font-size:10px;font-weight:700;color:#D97706;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Chapter '+esc(ch)+' &middot; Verse '+esc(v)+'</div>'+
-      (skt?'<div style="font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.9;font-family:serif;margin-bottom:13px;padding:14px 16px;background:rgba(217,119,6,.07);border-radius:12px;border-left:3px solid #D97706">'+esc(skt)+'</div>':'')+
+      '<div style="font-size:10px;font-weight:700;color:#D97706;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">Chapter '+esc(String(ch))+' &middot; Verse '+esc(String(v))+'</div>'+
+      (skt?'<div class="dvag-gita-verse">'+esc(skt)+'</div>':'')+
       (tr?'<div style="font-size:13px;color:var(--ink2);line-height:1.75;margin-bottom:10px"><strong style="font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink4)">Translation</strong><br><br>'+esc(tr)+'</div>':'')+
       (mn?'<div style="font-size:12.5px;color:var(--ink3);line-height:1.65;padding:10px 13px;background:var(--sfbg);border-radius:10px;margin-bottom:12px"><strong style="font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink4)">Meaning</strong><br><br>'+esc(mn)+'</div>':'')+
-      '<a href="https://www.holy-bhagavad-gita.org/chapter/'+esc(ch)+'/verse/'+esc(v)+'" target="_blank" rel="noopener" '+
-      'style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#D97706;text-decoration:none;padding:6px 14px;border:1.5px solid rgba(217,119,6,.28);border-radius:20px;background:rgba(217,119,6,.07)">'+
-      'Read full commentary →</a>';
+      '<a href="https://www.holy-bhagavad-gita.org/chapter/'+esc(String(ch))+'/verse/'+esc(String(v))+'" target="_blank" rel="noopener" '+
+      'style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#D97706;text-decoration:none;padding:6px 14px;border:1.5px solid rgba(217,119,6,.28);border-radius:20px;background:rgba(217,119,6,.07)">Read full commentary →</a>';
     bd.style.display='block';
-    kpShow('dvag-gita-kp',true);
-    kpFade(document.getElementById('dvag-gita-kp'));
+    kpShow('dvag-gita-kp',true); kpFade(document.getElementById('dvag-gita-kp'));
   }
 
   function renderAtlasBadge(){
@@ -944,27 +982,30 @@
     var hdr=wp.querySelector('div'); if(hdr) hdr.appendChild(b);
   }
 
-  /* ────────────────────────────────────────────────────────────
-     12. MAIN AGENT RUN (knowledge page)
-  ──────────────────────────────────────────────────────────── */
+  /* ── 14. MAIN AGENT RUN ─────────────────────────────────────── */
   function runAgents(query,platform){
     if(!query) return;
     ensureKPPanels();
 
-    ['dvag-intent-kp','dvag-context-kp','dvag-discovery-kp','dvag-insights-kp','dvag-gita-kp','dvag-ai-kp'].forEach(function(id){ kpShow(id,false); });
+    /* Reset all panels */
+    ['dvag-ai-panel','dvag-intent-kp','dvag-msrc-panel','dvag-context-kp','dvag-discovery-kp','dvag-insights-kp','dvag-gita-kp'].forEach(function(id){ kpShow(id,false); });
     var dL=document.getElementById('dvag-disc-loading'),dB=document.getElementById('dvag-disc-body');
     if(dL) dL.style.display='flex'; if(dB){ dB.style.display='none'; dB.innerHTML=''; }
     var gL=document.getElementById('dvag-gita-loading'),gB=document.getElementById('dvag-gita-body');
     if(gL) gL.style.display='flex'; if(gB){ gB.style.display='none'; gB.innerHTML=''; }
-    var aiL=document.getElementById('dvag-ai-loading'),aiB=document.getElementById('dvag-ai-body');
-    if(aiL) aiL.style.display='flex'; if(aiB){ aiB.style.display='none'; aiB.innerHTML=''; }
+    var aiLoad=document.getElementById('dvag-ai-loading'),aiTxt=document.getElementById('dvag-ai-text');
+    if(aiLoad) aiLoad.style.display='flex'; if(aiTxt) aiTxt.style.display='none';
 
     var intent=detectIntent(query);
     var rIds=PLATFORM_ROUTES[intent.cat]||PLATFORM_ROUTES.general;
     var routes=rIds.map(function(id){ return Object.assign({id:id},PM[id]||{name:id,emoji:'🔍',color:'#888',url:function(q){ return 'https://www.google.com/search?q='+encodeURIComponent(q); },reason:'Search here'}); });
 
-    renderIntentRouting(query,intent,routes);
-    tSet('orion','done'); tSet('nova','done');
+    /* Orion + Nova */
+    renderIntentRouting(query,intent,routes); tSet('orion','done'); tSet('nova','done');
+
+    /* Multi-source futuristic cards */
+    renderMultiSource(query,intent,routes);
+    kpShow('dvag-msrc-panel',true);
 
     /* Atlas */
     setTimeout(function(){
@@ -980,34 +1021,84 @@
     renderInsights(intent); tSet('helix','done');
 
     /* Zenith */
-    if(query.trim().split(/\s+/).length<=4){
+    if(query.trim().split(/\s+/).length<=5){
       tSet('zenith','active');
       fetchWikiSearch(query).then(function(c){ renderContext(c); tSet('zenith','done'); }).catch(function(){ kpShow('dvag-context-kp',false); tSet('zenith','done'); });
     } else { tSet('zenith','done'); }
 
-    /* Vyasa — always show a verse, unique per query */
+    /* Vyasa — always show a fresh verse per search */
     kpShow('dvag-gita-kp',true); tSet('vyasa','active');
-    var ref=selectGitaRef(query)||pickVerseForQuery(query);
+    var ref=selectGitaRef(query)||pickSessionVerse();
     fetchGitaVerse(ref.ch,ref.v).then(function(d){
-      if(d) renderGitaKP(d,ref.ch,ref.v);
-      else kpShow('dvag-gita-kp',false);
+      if(d) renderGitaKP(d,ref.ch,ref.v); else kpShow('dvag-gita-kp',false);
       tSet('vyasa','done');
     }).catch(function(){ kpShow('dvag-gita-kp',false); tSet('vyasa','done'); });
 
-    /* Update ambient ribbon with relevant verse */
+    /* Free AI insight — try Pollinations */
+    renderAIPanel(query);
+
+    /* Update ambient ribbon with new verse */
     updateRibbonForQuery(query);
 
-    /* Free AI insight via Pollinations.ai */
-    kpShow('dvag-ai-kp',true);
-    fetchPollinationsInsight(query).then(function(txt){ renderAiInsight(txt); }).catch(function(){ kpShow('dvag-ai-kp',false); });
+    /* Show wisdom bar too */
+    showWisdomForQuery(query);
   }
 
-  /* ────────────────────────────────────────────────────────────
-     13. HOOK INTO EXISTING FUNCTIONS
-  ──────────────────────────────────────────────────────────── */
+  /* ── 15. FIX LOGOUT ─────────────────────────────────────────── */
+  function patchLogout(){
+    /* Re-define handleLogout to ensure it fully works */
+    window.handleLogout = async function(){
+      try{
+        /* Clear Firebase session */
+        if(window._auth){
+          await window._auth.signOut();
+        } else if(window._googleLogout){
+          await window._googleLogout();
+        }
+      }catch(e){ console.warn('signOut error:',e.message); }
+
+      /* Clear all local storage */
+      ['dv_tok','dv_usr','dv_mem','dv_lifetime'].forEach(function(k){ localStorage.removeItem(k); });
+
+      /* Reset state */
+      if(window.state){
+        window.state.authUser=null;
+        window.state.token=null;
+        window.state.member=false;
+      }
+
+      /* Reset search counter */
+      if(typeof window.setSearches==='function') window.setSearches(0);
+
+      /* Close any open menus */
+      var menu=document.getElementById('avatar-menu');
+      if(menu) menu.classList.remove('open');
+
+      /* Update UI */
+      if(typeof window.applyAuthUI==='function') window.applyAuthUI();
+
+      /* Redirect to auth page */
+      if(typeof window.showPage==='function') window.showPage('auth');
+
+      /* Force page reload as failsafe after a brief delay */
+      setTimeout(function(){
+        var ap=document.getElementById('auth-page');
+        var sp=document.getElementById('search-page');
+        if(ap&&sp){
+          /* If still on search page, force the redirect */
+          if(sp.style.display==='flex'){
+            sp.style.display='none';
+            ap.classList.add('open');
+          }
+        }
+      }, 200);
+    };
+  }
+
+  /* ── 16. HOOK INTO EXISTING FUNCTIONS ──────────────────────── */
   function hookFunctions(){
-    /* Wrap fireSearch → inject cinema animation */
-    if(typeof window.fireSearch==='function'&&!window.fireSearch._dvagV3){
+    /* Wrap fireSearch → cinema animation */
+    if(typeof window.fireSearch==='function'&&!window.fireSearch._dvagV4){
       var _orig=window.fireSearch;
       window.fireSearch=function(mode,forcePlatform){
         var inp=(mode==='mobile')?document.getElementById('msb-input'):document.getElementById('sb-input');
@@ -1017,25 +1108,25 @@
         }
         runAnimation(q,function(){ _orig(mode,forcePlatform); });
       };
-      window.fireSearch._dvagV3=true;
+      window.fireSearch._dvagV4=true;
     }
 
-    /* Wrap openKnowledgePage → run agents after */
-    if(typeof window.openKnowledgePage==='function'&&!window.openKnowledgePage._dvagV3){
+    /* Wrap openKnowledgePage → run agents */
+    if(typeof window.openKnowledgePage==='function'&&!window.openKnowledgePage._dvagV4){
       var _origKP=window.openKnowledgePage;
       window.openKnowledgePage=function(query,platform){
         _origKP(query,platform);
         setTimeout(function(){ runAgents(query,platform); },55);
       };
-      window.openKnowledgePage._dvagV3=true;
+      window.openKnowledgePage._dvagV4=true;
     }
+
+    /* Patch logout */
+    patchLogout();
   }
 
-  /* ────────────────────────────────────────────────────────────
-     14. INIT
-  ──────────────────────────────────────────────────────────── */
+  /* ── 17. INIT ────────────────────────────────────────────────── */
   var _built=false;
-
   function buildAll(){
     if(_built) return;
     var sp=document.getElementById('search-page');
@@ -1043,9 +1134,10 @@
     _built=true;
     buildHUD();
     buildRibbon();
+    buildWisdomBar();
     buildCinema();
     hookDropInput();
-    hookTypingDetection();
+    initSearchFocusHide();
   }
 
   function init(){
@@ -1059,18 +1151,26 @@
         buildAll();
         if(_built) clearInterval(iv);
       },200);
-      setTimeout(function(){ clearInterval(iv); _built=true; buildHUD(); buildRibbon(); buildCinema(); hookDropInput(); hookTypingDetection(); },4000);
+      setTimeout(function(){ clearInterval(iv); if(!_built){ _built=true; buildHUD(); buildRibbon(); buildWisdomBar(); buildCinema(); hookDropInput(); initSearchFocusHide(); } },4000);
     }
 
-    /* Watch for search page visibility (after login) */
     var sp=document.getElementById('search-page');
     if(sp){
       var obs=new MutationObserver(function(){
         if(sp.style.display==='flex'||sp.style.display===''){
-          if(!document.getElementById('dvag-hud')){ _built=false; buildAll(); hookDropInput(); hookTypingDetection(); }
+          if(!document.getElementById('dvag-hud')){ _built=false; buildAll(); hookDropInput(); initSearchFocusHide(); }
+          /* Also repatch logout each time auth state changes */
+          patchLogout();
         }
       });
       obs.observe(sp,{attributes:true,attributeFilter:['style']});
+    }
+
+    /* Also patch logout whenever auth-area re-renders */
+    var authArea=document.getElementById('auth-area');
+    if(authArea){
+      var authObs=new MutationObserver(function(){ patchLogout(); });
+      authObs.observe(authArea,{childList:true,subtree:true});
     }
   }
 
@@ -1084,7 +1184,8 @@
     run:runAgents,
     animate:runAnimation,
     detectIntent:detectIntent,
-    isGitaQuery:isGitaQ
+    isGitaQuery:isGitaQ,
+    patchLogout:patchLogout
   };
 
 })();

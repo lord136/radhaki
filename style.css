@@ -772,180 +772,37 @@ footer p{font-size:10px;color:var(--ink4);letter-spacing:.08em}
 /* pcard hover — slightly lifted; no float animation, JS drives motion */
 .pcard:hover { transform: translateY(-6px) scale(1.03); }
 
-/* ═══════════════════════ DIVYAM v4 ENHANCEMENTS ═══════════════════════ */
+/* ═══════════════════ DIVYAM v4.0 ADDITIONS ═══════════════════ */
 
-/* ── Typing mode: hide panels smoothly ── */
-.platforms-section {
-  transition: opacity .3s ease, transform .3s ease, max-height .4s cubic-bezier(.4,0,.2,1), margin-top .4s cubic-bezier(.4,0,.2,1);
-  max-height: 500px;
-}
-.platforms-section.typing {
-  opacity: 0;
-  transform: translateY(-10px) scale(.98);
-  max-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-  margin-top: 0 !important;
-}
-.saved-section {
-  transition: opacity .25s ease, transform .25s ease, max-height .35s cubic-bezier(.4,0,.2,1), margin-top .35s ease;
-  max-height: 220px;
-}
-.saved-section.typing {
-  opacity: 0;
-  transform: translateY(-8px);
-  max-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-  margin-top: 0 !important;
+/* hint-row base transition for focus-hide */
+.hint-row {
+  transition: opacity .22s ease, transform .22s ease;
 }
 
-/* ── Futuristic KP result cards ── */
-@keyframes kpCardIn {
-  from { opacity:0; transform: translateY(18px) scale(.97); }
-  to   { opacity:1; transform: translateY(0) scale(1); }
-}
-@keyframes shimmerFlow {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-@keyframes borderPulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(255,122,0,.0); }
-  50%      { box-shadow: 0 0 0 3px rgba(255,122,0,.12); }
-}
-@keyframes dataStream {
-  from { transform: translateX(-100%); opacity:0; }
-  40%  { opacity:1; }
-  to   { transform: translateX(100%); opacity:0; }
-}
-@keyframes floatGlyph {
-  0%,100% { transform: translateY(0); opacity:.7; }
-  50%      { transform: translateY(-3px); opacity:1; }
-}
-@keyframes scanBar {
-  0%   { top: -1px; opacity:0; }
-  10%  { opacity:.8; }
-  90%  { opacity:.8; }
-  100% { top: calc(100% + 1px); opacity:0; }
+/* Knowledge page: futuristic source card mouse-follow glow */
+.dvag-src-card {
+  --mx: 50%;
+  --my: 50%;
 }
 
-/* Knowledge page — signal tag */
-.kp-signal-tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 8px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 20px;
-  animation: floatGlyph 3s ease-in-out infinite;
+/* Knowledge page results: staggered entry animations */
+#dvag-kp-root > * {
+  animation: kpPanelIn .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+#dvag-kp-root > *:nth-child(1) { animation-delay: .02s }
+#dvag-kp-root > *:nth-child(2) { animation-delay: .07s }
+#dvag-kp-root > *:nth-child(3) { animation-delay: .12s }
+#dvag-kp-root > *:nth-child(4) { animation-delay: .17s }
+#dvag-kp-root > *:nth-child(5) { animation-delay: .22s }
+#dvag-kp-root > *:nth-child(6) { animation-delay: .27s }
+#dvag-kp-root > *:nth-child(7) { animation-delay: .32s }
+
+/* Wisdom bar expanded state */
+#dvag-wisdom-bar.expanded .dvag-wis-text {
+  white-space: normal;
 }
 
-/* KP cards — futuristic glow hover */
-#kp-cards > div {
-  position: relative; overflow: hidden;
-  transition: transform .28s var(--sp), box-shadow .28s, border-color .22s;
-  animation: kpCardIn .4s var(--sp) both;
-}
-#kp-cards > div::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,122,0,.4), transparent);
-  opacity: 0; transition: opacity .3s;
-}
-#kp-cards > div:hover {
-  transform: translateY(-4px) scale(1.015);
-  box-shadow: 0 12px 36px rgba(255,100,0,.16), 0 2px 8px rgba(0,0,0,.08);
-  border-color: rgba(255,122,0,.32) !important;
-}
-#kp-cards > div:hover::before { opacity: 1; }
-
-/* KP panels — data stream effect */
-.dvag-kp {
-  position: relative; overflow: hidden;
-}
-.dvag-kp::after {
-  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1.5px;
-  background: linear-gradient(90deg, transparent 0%, var(--sf) 50%, transparent 100%);
-  background-size: 200% 100%;
-  opacity: .18;
-  animation: shimmerFlow 4s linear infinite;
-}
-
-/* Fact chips — enhanced */
-.kp-fact-chip {
-  position: relative; overflow: hidden;
-  animation: kpCardIn .35s var(--sp) both;
-}
-.kp-fact-chip::after {
-  content: ''; position: absolute; top: 0; left: -100%; width: 60%;
-  height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
-  animation: shimmerFlow 3s ease-in-out infinite;
-}
-
-/* Wiki panel — scan line effect */
-#kp-wiki-panel {
-  position: relative; overflow: hidden;
-}
-
-/* Intelligence level badge on panels */
-.kp-intel-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 10px;
-  border: 1px solid rgba(255,122,0,.2);
-  background: rgba(255,122,0,.07);
-  color: var(--ink3);
-}
-
-/* Free AI panel styling */
-#dvag-ai-kp {
-  border-color: rgba(99,102,241,.22) !important;
-  background: linear-gradient(148deg, rgba(99,102,241,.05), rgba(139,92,246,.025)) !important;
-}
-.dark #dvag-ai-kp {
-  border-color: rgba(99,102,241,.3) !important;
-  background: linear-gradient(148deg, rgba(99,102,241,.08), rgba(139,92,246,.04)) !important;
-}
-
-/* Search bar — sharper focus ring */
-.sb-wrap.focused {
-  border-color: rgba(255,122,0,.6) !important;
-  box-shadow: 0 0 0 4px rgba(255,122,0,.1), 0 24px 80px rgba(255,100,0,.12), 0 8px 24px rgba(0,0,0,.06) !important;
-}
-
-/* Gita ribbon — more refined */
-.dvag-rbn-inner {
-  background: linear-gradient(148deg, rgba(217,119,6,.07) 0%, rgba(255,180,60,.03) 100%) !important;
-}
-.dvag-rbn-skt {
-  background: linear-gradient(135deg, rgba(217,119,6,.08), transparent);
-  padding: 10px 12px; border-radius: 10px; border-left: 2px solid rgba(217,119,6,.35);
-  margin-bottom: 6px !important;
-}
-
-/* Platform scroll — enhanced card borders */
-.pcard {
-  border: 1.5px solid var(--border2) !important;
-}
-.pcard:hover {
-  border-color: var(--sf) !important;
-  box-shadow: 0 12px 40px rgba(255,100,0,.15) !important;
-}
-
-/* KP section headers — more distinct */
-#knowledge-page [style*="Where to search"] {
-  background: linear-gradient(90deg, var(--sf) 0%, transparent 100%);
-  -webkit-background-clip: text; background-clip: text;
-  letter-spacing: .2em;
-}
-
-/* Result card stagger animation */
-#kp-cards > div:nth-child(1) { animation-delay: .05s; }
-#kp-cards > div:nth-child(2) { animation-delay: .1s; }
-#kp-cards > div:nth-child(3) { animation-delay: .15s; }
-#kp-cards > div:nth-child(4) { animation-delay: .2s; }
-
-/* Source trust chip */
-.src-trust {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 8px; font-weight: 700; padding: 1px 6px;
-  border-radius: 8px; background: rgba(34,197,94,.08);
-  border: 1px solid rgba(34,197,94,.2); color: rgba(34,197,94,.8);
-  letter-spacing: .07em;
+/* Mouse-track glow on source cards */
+.dvag-src-card {
+  background: var(--glass);
 }
